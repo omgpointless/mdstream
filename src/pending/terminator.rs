@@ -176,24 +176,28 @@ fn apply_setext_heading_protection(text: &str) -> String {
         return trimmed.to_string();
     }
 
+    // Streamdown/remend behavior:
+    // - Match the last line after trimming BOTH ends (so leading whitespace is allowed).
+    // - Only protect 1-2 dashes/equals.
+    // - If the marker already has trailing whitespace, skip (it's already broken).
     let last_line = &trimmed[last_nl + 1..];
-    let last_line_trim = last_line.trim_end_matches(|c| c == ' ' || c == '\t');
+    let trimmed_last_line = last_line.trim();
 
-    // Only protect ambiguous setext-like lines.
-    // -/--/= /== => add ZWSP
-    // Do not modify valid rules/headings: --- / === / ---- / etc.
-    let is_ambiguous_dashes = matches!(last_line_trim, "-" | "--");
-    let is_ambiguous_equals = matches!(last_line_trim, "=" | "==");
-    let is_hr = last_line_trim.chars().all(|c| c == '-') && last_line_trim.len() >= 3;
-    let is_setext = last_line_trim.chars().all(|c| c == '=') && last_line_trim.len() >= 3;
+    let is_ambiguous_dashes = trimmed_last_line == "-" || trimmed_last_line == "--";
+    let is_ambiguous_equals = trimmed_last_line == "=" || trimmed_last_line == "==";
 
-    if (is_ambiguous_dashes || is_ambiguous_equals) && !is_hr && !is_setext {
-        let mut out = String::with_capacity(trimmed.len() + 3);
-        out.push_str(&trimmed[..last_nl + 1]);
-        // Preserve original indentation.
-        out.push_str(last_line_trim);
-        out.push('\u{200B}');
-        return out;
+    let has_trailing_ws_after_marker =
+        last_line.ends_with(' ') || last_line.ends_with('\t');
+
+    if (is_ambiguous_dashes || is_ambiguous_equals) && !has_trailing_ws_after_marker {
+        // Check if the previous line has content (required for setext headings).
+        let prev_line = prev.rsplit('\n').next().unwrap_or("");
+        if !prev_line.trim().is_empty() {
+            let mut out = String::with_capacity(trimmed.len() + 3);
+            out.push_str(trimmed);
+            out.push('\u{200B}');
+            return out;
+        }
     }
 
     trimmed.to_string()
@@ -494,6 +498,12 @@ fn handle_incomplete_bold(text: &str) -> String {
         return text.to_string();
     }
 
+    // Streamdown/remend: if a bold marker appears right after a list marker
+    // and spans multiple lines, skip auto-closing (avoid cross-line list artifacts).
+    if content_after.contains('\n') && is_line_prefix_list_marker(text, marker_idx) {
+        return text.to_string();
+    }
+
     let pairs = text.match_indices("**").count();
     if pairs % 2 == 1 {
         let mut out = String::with_capacity(text.len() + 2);
@@ -520,6 +530,12 @@ fn handle_incomplete_double_underscore_italic(text: &str) -> String {
         return text.to_string();
     }
     if is_horizontal_rule_line(text, marker_idx, b'_') {
+        return text.to_string();
+    }
+
+    // Streamdown/remend: if a __ marker appears right after a list marker and spans multiple
+    // lines, skip auto-closing.
+    if content_after.contains('\n') && is_line_prefix_list_marker(text, marker_idx) {
         return text.to_string();
     }
 
@@ -579,6 +595,43 @@ fn handle_incomplete_single_asterisk_italic(text: &str) -> String {
         return out;
     }
     text.to_string()
+}
+
+fn is_line_prefix_list_marker(text: &str, marker_index: usize) -> bool {
+    // Match remend listItemPattern: /^[\s]*[-*+][\s]+$/
+    // We apply it to the substring before the marker on the same line.
+    let bytes = text.as_bytes();
+    let mut line_start = marker_index;
+    while line_start > 0 && bytes[line_start - 1] != b'\n' {
+        line_start -= 1;
+    }
+    let prefix = &text[line_start..marker_index];
+    let mut i = 0usize;
+    let pbytes = prefix.as_bytes();
+    while i < pbytes.len() && (pbytes[i] == b' ' || pbytes[i] == b'\t') {
+        i += 1;
+    }
+    if i >= pbytes.len() {
+        return false;
+    }
+    let marker = pbytes[i];
+    if marker != b'-' && marker != b'*' && marker != b'+' {
+        return false;
+    }
+    i += 1;
+    if i >= pbytes.len() {
+        return false;
+    }
+    let mut has_ws = false;
+    while i < pbytes.len() {
+        if pbytes[i] == b' ' || pbytes[i] == b'\t' {
+            has_ws = true;
+            i += 1;
+            continue;
+        }
+        return false;
+    }
+    has_ws
 }
 
 fn insert_closing_underscore(text: &str) -> String {

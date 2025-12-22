@@ -204,6 +204,7 @@ pub struct MdStream {
     pending_display_cache: Option<String>,
     footnotes_detected: bool,
     footnote_scan_tail: String,
+    pending_cr: bool,
 }
 
 impl MdStream {
@@ -228,6 +229,7 @@ impl MdStream {
             pending_display_cache: None,
             footnotes_detected: false,
             footnote_scan_tail: String::new(),
+            pending_cr: false,
         }
     }
 
@@ -244,22 +246,41 @@ impl MdStream {
         blocks
     }
 
-    fn normalize_newlines(chunk: &str) -> String {
-        if !chunk.contains('\r') {
+    fn normalize_newlines(&mut self, chunk: &str) -> String {
+        if !chunk.contains('\r') && !self.pending_cr {
             return chunk.to_string();
         }
-        let mut out = String::with_capacity(chunk.len());
+
+        let mut out = String::with_capacity(chunk.len() + 1);
         let mut chars = chunk.chars().peekable();
-        while let Some(c) = chars.next() {
-            if c == '\r' {
-                if chars.peek() == Some(&'\n') {
-                    chars.next();
-                }
-                out.push('\n');
-            } else {
-                out.push(c);
+
+        if self.pending_cr {
+            // Previous chunk ended with '\r' (possibly CRLF across boundary).
+            if chars.peek() == Some(&'\n') {
+                chars.next();
             }
+            out.push('\n');
+            self.pending_cr = false;
         }
+
+        while let Some(c) = chars.next() {
+            if c != '\r' {
+                out.push(c);
+                continue;
+            }
+            if chars.peek() == Some(&'\n') {
+                chars.next();
+                out.push('\n');
+                continue;
+            }
+            if chars.peek().is_none() {
+                // Defer decision: this may be a CRLF pair split across chunks.
+                self.pending_cr = true;
+                continue;
+            }
+            out.push('\n');
+        }
+
         out
     }
 
@@ -756,12 +777,12 @@ impl MdStream {
 
     pub fn append(&mut self, chunk: &str) -> Update {
         let mut update = Update::empty();
-        if chunk.is_empty() {
+        if chunk.is_empty() && !self.pending_cr {
             update.pending = self.current_pending_block();
             return update;
         }
 
-        let chunk = Self::normalize_newlines(chunk);
+        let chunk = self.normalize_newlines(chunk);
 
         if !self.footnotes_detected {
             let mut combined = String::with_capacity(self.footnote_scan_tail.len() + chunk.len());
@@ -807,6 +828,12 @@ impl MdStream {
 
     pub fn finalize(&mut self) -> Update {
         let mut update = Update::empty();
+
+        if self.pending_cr {
+            // Treat a trailing '\r' at EOF as a newline.
+            self.append_to_lines("\n");
+            self.pending_cr = false;
+        }
 
         if self.opts.footnotes == FootnotesMode::SingleBlock && self.footnotes_detected {
             if !self.buffer.is_empty() {
@@ -865,5 +892,6 @@ impl MdStream {
         self.pending_display_cache = None;
         self.footnotes_detected = false;
         self.footnote_scan_tail.clear();
+        self.pending_cr = false;
     }
 }
