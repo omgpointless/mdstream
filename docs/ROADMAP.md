@@ -9,14 +9,14 @@ This roadmap is intentionally practical: it prioritizes streaming stability and 
 - Pending termination (remend-like)
 - Minimal configuration options
 - Unit tests covering streaming edge cases
-
-## v0.2 (Adapters + Ergonomics)
-
+- Optional fenced-JSON repair via `jsonrepair` (feature-gated, opt-in)
 - Optional `pulldown-cmark` adapter (feature-gated)
-  - parse committed blocks once and cache events
-  - parse pending block on each tick
+
+## v0.2 (Ergonomics + Robustness)
+
 - Add `snapshot_blocks()` and `snapshot_text()` convenience APIs
 - Improve HTML block handling and table/list heuristics
+- More remend parity tests (regression suite)
 
 ## v0.3 (Cross-block semantics)
 
@@ -31,4 +31,3 @@ This roadmap is intentionally practical: it prioritizes streaming stability and 
 - Extension points for custom containers / directives
 - More built-in analyzers for code fence info strings (mermaid, json, etc.)
 - Performance benchmarks and regression suite
-

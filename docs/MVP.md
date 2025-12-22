@@ -39,6 +39,7 @@ Remend-like termination for incomplete syntax near the tail (pending only):
 ### Optional (SHOULD)
 
 - Fenced JSON repair inside ```json / ```jsonc / ```json5 (opt-in, using `jsonrepair`)
+- `pulldown-cmark` adapter (feature-gated) for Rust UI/TUI ecosystems
 
 ## Behavioral Contracts (Acceptance)
 
@@ -67,10 +68,13 @@ The following scenarios must be covered by unit tests (ported conceptually from 
   - `[^1]: line1\n    line2\n` split across chunks
 - HTML block spanning tokens: `<div>\n...` split; keep as one block until closed when possible
 - List + emphasis interaction edge cases (avoid mis-termination)
+- Newline normalization:
+  - CRLF split across chunks (`"\r"` then `"\n"`) must become a single `\n`
+- Setext heading protection with indentation (`"  -"` / `"  ="`) should be protected consistently
+- Lists with multiline content starting at `- **...` should not be auto-closed across newlines (remend parity)
 
 ## Out of Scope for MVP
 
 - Full CommonMark conformance test suite
 - Arbitrary plugin ecosystems beyond the initial extension points (see `docs/EXTENSIONS.md`)
-- Automatic re-parse/invalidations for cross-block semantics (optional post-MVP)
-
+- Automatic re-parse/invalidations for cross-block semantics (post-MVP)

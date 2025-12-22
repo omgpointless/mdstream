@@ -4,6 +4,8 @@
 
 ## pulldown-cmark (optional)
 
+This adapter is implemented behind the `pulldown` Cargo feature.
+
 ### Why adapter instead of core dependency
 
 - `mdstream` aims to support multiple render targets and parsers.
@@ -30,4 +32,3 @@ Two possible behaviors:
 
 - `markdown-it` style token streams are out-of-scope for Rust, but a similar strategy applies.
 - A TUI adapter can render directly from blocks without a full Markdown AST by using a lightweight inline parser (future exploration).
-

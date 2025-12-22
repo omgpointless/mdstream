@@ -72,6 +72,7 @@ Typical variants:
 Internally we maintain:
 
 - `buffer`: accumulated text (optionally capped)
+- newline normalization: accept `\n`, `\r\n`, and legacy `\r` and normalize to `\n` (including CRLF split across chunk boundaries)
 - `line index`: incremental line splitting to avoid re-splitting the whole buffer
 - `context`: line-scoped context (code fence state, container state, list/blockquote depth, etc.)
 - `pending_start`: where the current pending block begins
@@ -120,4 +121,3 @@ The default can prioritize streaming stability (SingleBlock for footnotes) while
 - `committed` blocks are append-only, stable, and never re-emitted with changed text.
 - At most one `pending` block exists at a time.
 - `append()` does not allocate proportional to total history (no full re-parse).
-

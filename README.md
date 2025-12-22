@@ -37,5 +37,9 @@ It targets LLM token-by-token / chunk-by-chunk output and helps downstream UIs (
 
 ## Status
 
-This repository currently focuses on design and documentation first. Implementation will follow the documented contracts and acceptance tests.
+Initial MVP implementation is in progress:
 
+- `MdStream` core state machine (blocks: committed + pending)
+- Pending terminator (Streamdown/remend-inspired)
+- Streaming boundary tests (Streamdown/Incremark-inspired)
+- Optional `pulldown-cmark` adapter via the `pulldown` feature
