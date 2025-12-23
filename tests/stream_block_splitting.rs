@@ -10,6 +10,26 @@ fn splits_paragraphs_on_blank_line() {
 }
 
 #[test]
+fn commits_setext_heading_as_single_block() {
+    let mut s = MdStream::new(Options::default());
+    let u = s.append("Title\n---\nAfter");
+    assert!(u.committed.iter().any(|b| {
+        b.kind == mdstream::BlockKind::Heading && b.raw == "Title\n---\n"
+    }));
+    assert_eq!(u.pending.as_ref().unwrap().raw, "After");
+}
+
+#[test]
+fn commits_thematic_break_with_spaces() {
+    let mut s = MdStream::new(Options::default());
+    let u = s.append("- - -\nAfter");
+    assert!(u.committed.iter().any(|b| {
+        b.kind == mdstream::BlockKind::ThematicBreak && b.raw == "- - -\n"
+    }));
+    assert_eq!(u.pending.as_ref().unwrap().raw, "After");
+}
+
+#[test]
 fn commits_list_as_single_block() {
     let mut s = MdStream::new(Options::default());
     s.append("- a\n- b\n");
