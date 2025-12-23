@@ -31,6 +31,7 @@ It targets LLM token-by-token / chunk-by-chunk output and helps downstream UIs (
 - Architecture: `docs/ARCHITECTURE.md`
 - MVP definition & acceptance tests: `docs/MVP.md`
 - Roadmap: `docs/ROADMAP.md`
+- Usage (integration patterns): `docs/USAGE.md`
 - Compatibility & edge cases: `docs/COMPATIBILITY.md`
 - Adapters (pulldown-cmark, etc.): `docs/ADAPTERS.md`
 - Extension points: `docs/EXTENSIONS.md`
@@ -44,3 +45,7 @@ Initial MVP implementation is in progress:
 - Streaming boundary tests (Streamdown/Incremark-inspired)
 - Reference-style link definitions invalidation (opt-in, for adapters)
 - Optional `pulldown-cmark` adapter via the `pulldown` feature
+
+Try the demo:
+
+`cargo run --example tui_like`
