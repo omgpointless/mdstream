@@ -6,6 +6,30 @@ This document tracks compatibility goals with:
 - Incremark (stable boundary detection + streaming edge cases)
 - pulldown-cmark ecosystem (optional adapter)
 
+## Scope Rule
+
+`mdstream` follows a strict scope boundary:
+
+- If Streamdown's `parseMarkdownIntoBlocks` supports a streaming-stability behavior at the block
+  boundary level, `mdstream` must support it (with stable `committed + pending` semantics).
+- If Streamdown does not support it (e.g. provider-specific tool calls, message parts, citations as
+  business semantics), `mdstream` does not implement it in the core library.
+
+Any behavior outside Streamdown parity must be explicitly agreed as project scope before adding.
+
+## Streamdown parity checklist (block splitting)
+
+Baseline: `repo-ref/streamdown/packages/streamdown/lib/parse-blocks.tsx`.
+
+- Basic parsing: headings + paragraphs (covered: `tests/stream_streamdown_basic_parsing.rs`)
+- Code fences: ``` / ~~~ (covered: `tests/stream_streamdown_code_blocks.rs`)
+- Math blocks: `$$ ... $$` (covered: `tests/stream_block_splitting.rs`)
+- HTML blocks: conservative merge with tag stack (covered: `tests/stream_block_splitting.rs`)
+- Footnotes: if any footnotes exist, return single block (covered: `tests/stream_block_splitting.rs`)
+- Tables: GFM delimiter row (covered: `tests/stream_block_splitting.rs`)
+- Streaming simulation (covered: `tests/stream_streamdown_simulation.rs`)
+- Mixed content scenario (covered: `tests/stream_streamdown_mixed_content.rs`)
+
 ## Streaming edge cases (must handle)
 
 ### Incomplete inline constructs
@@ -51,4 +75,3 @@ Streamdown uses a special URL marker: `streamdown:incomplete-link`.
 Streamdown removes incomplete images (because partial images cannot display meaningfully).
 
 `mdstream` should support the same default behavior.
-
