@@ -1,4 +1,6 @@
-use crate::options::{FootnotesMode, Options};
+use std::collections::{HashMap, HashSet};
+
+use crate::options::{FootnotesMode, Options, ReferenceDefinitionsMode};
 use crate::pending::terminate_markdown;
 use crate::types::{Block, BlockId, BlockKind, BlockStatus, Update};
 
@@ -140,6 +142,133 @@ fn is_footnote_continuation(line: &str) -> bool {
     line.starts_with("    ") || line.starts_with('\t')
 }
 
+fn extract_reference_definition_label(line: &str) -> Option<String> {
+    // CommonMark-ish reference definition, single line only:
+    // up to 3 leading spaces, then "[label]:"
+    //
+    // We purposely keep this lightweight and streaming-friendly; multi-line definitions
+    // can be supported later via a dedicated block mode.
+    let mut s = line;
+    let mut spaces = 0usize;
+    while spaces < 3 && s.starts_with(' ') {
+        s = &s[1..];
+        spaces += 1;
+    }
+    let bytes = s.as_bytes();
+    if bytes.len() < 4 || bytes[0] != b'[' {
+        return None;
+    }
+    let close = s.find(']')?;
+    if close == 1 {
+        return None;
+    }
+    if s.as_bytes().get(close + 1) != Some(&b':') {
+        return None;
+    }
+    let label = &s[1..close];
+    // Exclude footnote definitions like "[^1]:"
+    if label.starts_with('^') {
+        return None;
+    }
+    normalize_reference_label(label)
+}
+
+fn normalize_reference_label(label: &str) -> Option<String> {
+    let trimmed = label.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    // Keep a conservative cap similar to Streamdown's footnote patterns.
+    if trimmed.len() > 200 {
+        return None;
+    }
+    let mut out = String::with_capacity(trimmed.len());
+    let mut last_was_ws = false;
+    for ch in trimmed.chars() {
+        if ch.is_whitespace() {
+            last_was_ws = true;
+            continue;
+        }
+        if last_was_ws && !out.is_empty() {
+            out.push(' ');
+        }
+        last_was_ws = false;
+        for lc in ch.to_lowercase() {
+            out.push(lc);
+        }
+    }
+    if out.is_empty() {
+        None
+    } else {
+        Some(out)
+    }
+}
+
+fn extract_reference_usages(text: &str) -> HashSet<String> {
+    // Best-effort extractor for reference-style link labels:
+    // - [text][label]
+    // - [label][]
+    // - [label] (shortcut)
+    //
+    // We intentionally over-approximate: false positives only cause extra invalidations.
+    let bytes = text.as_bytes();
+    let mut out = HashSet::new();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if bytes[i] != b'[' {
+            i += 1;
+            continue;
+        }
+        let Some(close1_rel) = text[i + 1..].find(']') else {
+            break;
+        };
+        let close1 = i + 1 + close1_rel;
+        let label1 = &text[i + 1..close1];
+        // Skip footnote-ish labels.
+        if label1.starts_with('^') {
+            i = close1 + 1;
+            continue;
+        }
+
+        // Inline links/images: [text](...) / ![alt](...)
+        if bytes.get(close1 + 1) == Some(&b'(') {
+            i = close1 + 1;
+            continue;
+        }
+        // Definition: [label]: ...
+        if bytes.get(close1 + 1) == Some(&b':') {
+            i = close1 + 1;
+            continue;
+        }
+
+        // Reference form: [text][label] or [label][]
+        if bytes.get(close1 + 1) == Some(&b'[') {
+            let start2 = close1 + 2;
+            if start2 >= bytes.len() {
+                break;
+            }
+            let Some(close2_rel) = text[start2..].find(']') else {
+                break;
+            };
+            let close2 = start2 + close2_rel;
+            let label2 = &text[start2..close2];
+            let chosen = if label2.trim().is_empty() { label1 } else { label2 };
+            if let Some(norm) = normalize_reference_label(chosen) {
+                out.insert(norm);
+            }
+            i = close2 + 1;
+            continue;
+        }
+
+        // Shortcut reference: [label]
+        if let Some(norm) = normalize_reference_label(label1) {
+            out.insert(norm);
+        }
+        i = close1 + 1;
+    }
+    out
+}
+
 fn count_double_dollars(line: &str) -> usize {
     let bytes = line.as_bytes();
     let mut count = 0usize;
@@ -205,6 +334,8 @@ pub struct MdStream {
     footnotes_detected: bool,
     footnote_scan_tail: String,
     pending_cr: bool,
+
+    reference_usage_index: HashMap<String, HashSet<BlockId>>,
 }
 
 impl MdStream {
@@ -230,6 +361,7 @@ impl MdStream {
             footnotes_detected: false,
             footnote_scan_tail: String::new(),
             pending_cr: false,
+            reference_usage_index: HashMap::new(),
         }
     }
 
@@ -412,14 +544,56 @@ impl MdStream {
             raw,
             display: None,
         };
-        self.committed.push(block.clone());
-        update.committed.push(block);
+        self.push_committed_block(block, update);
 
         self.current_block_start_line = end_line_inclusive + 1;
         self.current_block_id = BlockId(self.next_block_id);
         self.next_block_id += 1;
         self.current_mode = BlockMode::Unknown;
         self.pending_display_cache = None;
+    }
+
+    fn push_committed_block(&mut self, block: Block, update: &mut Update) {
+        // Index usages for invalidation-based adapters.
+        if block.kind != BlockKind::CodeFence && block.raw.contains('[') {
+            let used = extract_reference_usages(&block.raw);
+            if !used.is_empty() {
+                for label in used {
+                    self.reference_usage_index
+                        .entry(label)
+                        .or_default()
+                        .insert(block.id);
+                }
+            }
+        }
+
+        // Emit invalidations when new reference definitions arrive.
+        if self.opts.reference_definitions == ReferenceDefinitionsMode::Invalidate
+            && block.kind != BlockKind::CodeFence
+            && block.raw.contains("]:")
+        {
+            let mut invalidated = HashSet::new();
+            for line in block.raw.split('\n') {
+                let Some(label) = extract_reference_definition_label(line) else {
+                    continue;
+                };
+                if let Some(ids) = self.reference_usage_index.get(&label) {
+                    for id in ids {
+                        if *id != block.id {
+                            invalidated.insert(*id);
+                        }
+                    }
+                }
+            }
+            if !invalidated.is_empty() {
+                let mut ids: Vec<BlockId> = invalidated.into_iter().collect();
+                ids.sort_by_key(|id| id.0);
+                update.invalidated.extend(ids);
+            }
+        }
+
+        self.committed.push(block.clone());
+        update.committed.push(block);
     }
 
     fn maybe_commit_single_line(&mut self, line_index: usize, update: &mut Update) {
@@ -844,8 +1018,7 @@ impl MdStream {
                     raw: self.buffer.clone(),
                     display: None,
                 };
-                self.committed.push(block.clone());
-                update.committed.push(block);
+                self.push_committed_block(block, &mut update);
             }
             update.pending = None;
             return update;
@@ -865,8 +1038,7 @@ impl MdStream {
                     raw,
                     display: None,
                 };
-                self.committed.push(block.clone());
-                update.committed.push(block);
+                self.push_committed_block(block, &mut update);
                 // Reset to empty.
                 self.current_block_start_line = end_line + 1;
             }
@@ -893,5 +1065,6 @@ impl MdStream {
         self.footnotes_detected = false;
         self.footnote_scan_tail.clear();
         self.pending_cr = false;
+        self.reference_usage_index.clear();
     }
 }

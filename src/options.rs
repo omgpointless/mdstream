@@ -37,7 +37,7 @@ impl Default for Options {
     fn default() -> Self {
         Self {
             footnotes: FootnotesMode::SingleBlock,
-            reference_definitions: ReferenceDefinitionsMode::Invalidate,
+            reference_definitions: ReferenceDefinitionsMode::StabilityFirst,
             terminator: TerminatorOptions::default(),
             terminator_window_bytes: 16 * 1024,
             max_buffer_bytes: None,
@@ -45,4 +45,3 @@ impl Default for Options {
         }
     }
 }
-
