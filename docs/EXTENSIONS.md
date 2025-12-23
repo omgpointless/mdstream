@@ -28,6 +28,7 @@ Status: implemented (MVP-level).
 - `FenceBoundaryPlugin` as a small reference implementation (e.g. `:::warning ... :::`)
 - `TagBoundaryPlugin` as another built-in example (e.g. `<thinking> ... </thinking>`)
 - `ContainerBoundaryPlugin` for Incremark-compatible `::: name attr` containers (with nesting)
+- `FnBoundaryPlugin` for quick ad-hoc custom boundaries (closure-based)
 
 Notes on `:::` containers:
 
@@ -40,12 +41,30 @@ Notes on `:::` containers:
 Minimal example:
 
 ```rust
-use mdstream::{ContainerBoundaryPlugin, FenceBoundaryPlugin, MdStream, Options, TagBoundaryPlugin};
+use mdstream::{
+    BoundaryUpdate, ContainerBoundaryPlugin, FenceBoundaryPlugin, FnBoundaryPlugin, MdStream,
+    Options, TagBoundaryPlugin,
+};
 
 let mut s = MdStream::new(Options::default());
 s.push_boundary_plugin(FenceBoundaryPlugin::triple_colon());
 s.push_boundary_plugin(TagBoundaryPlugin::thinking());
 s.push_boundary_plugin(ContainerBoundaryPlugin::default());
+
+// A tiny custom container:
+// - starts at a line that is exactly "@@@"
+// - ends at the next line that is exactly "@@@"
+let plugin = FnBoundaryPlugin::new(
+    |line| line.trim() == "@@@",
+    |line| {
+        if line.trim() == "@@@" {
+            BoundaryUpdate::Close
+        } else {
+            BoundaryUpdate::Continue
+        }
+    },
+);
+s.push_boundary_plugin(plugin);
 ```
 
 ### 2) PendingTransformer

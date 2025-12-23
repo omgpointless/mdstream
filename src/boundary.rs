@@ -28,6 +28,72 @@ pub trait BoundaryPlugin: Send {
     fn reset(&mut self) {}
 }
 
+/// A lightweight adapter to implement `BoundaryPlugin` via closures.
+///
+/// Notes:
+///
+/// - `update` is called for every line in the block, including the starting line.
+/// - If you need state, capture it in the `FnMut` closures.
+pub struct FnBoundaryPlugin {
+    matches_start: Box<dyn Fn(&str) -> bool + Send + Sync>,
+    start: Option<Box<dyn FnMut(&str) + Send>>,
+    update: Box<dyn FnMut(&str) -> BoundaryUpdate + Send>,
+    reset: Option<Box<dyn FnMut() + Send>>,
+}
+
+impl FnBoundaryPlugin {
+    pub fn new<M, U>(matches_start: M, update: U) -> Self
+    where
+        M: Fn(&str) -> bool + Send + Sync + 'static,
+        U: FnMut(&str) -> BoundaryUpdate + Send + 'static,
+    {
+        Self {
+            matches_start: Box::new(matches_start),
+            start: None,
+            update: Box::new(update),
+            reset: None,
+        }
+    }
+
+    pub fn with_start<S>(mut self, start: S) -> Self
+    where
+        S: FnMut(&str) + Send + 'static,
+    {
+        self.start = Some(Box::new(start));
+        self
+    }
+
+    pub fn with_reset<R>(mut self, reset: R) -> Self
+    where
+        R: FnMut() + Send + 'static,
+    {
+        self.reset = Some(Box::new(reset));
+        self
+    }
+}
+
+impl BoundaryPlugin for FnBoundaryPlugin {
+    fn matches_start(&self, line: &str) -> bool {
+        (self.matches_start)(line)
+    }
+
+    fn start(&mut self, line: &str) {
+        if let Some(f) = self.start.as_mut() {
+            (f)(line);
+        }
+    }
+
+    fn update(&mut self, line: &str) -> BoundaryUpdate {
+        (self.update)(line)
+    }
+
+    fn reset(&mut self) {
+        if let Some(f) = self.reset.as_mut() {
+            (f)();
+        }
+    }
+}
+
 fn strip_up_to_three_leading_spaces(line: &str) -> &str {
     let mut s = line;
     let mut spaces = 0usize;
