@@ -3,11 +3,18 @@
 //! Run:
 //!   cargo run --features pulldown --example pulldown_incremental
 
-use mdstream::adapters::pulldown::{PulldownAdapter, PulldownAdapterOptions};
-use mdstream::{MdStream, Options, ReferenceDefinitionsMode};
-use pulldown_cmark::{Options as PulldownOptions, Tag};
-
+#[cfg(not(feature = "pulldown"))]
 fn main() {
+    eprintln!("This example requires the `pulldown` feature.");
+    eprintln!("Run: cargo run --features pulldown --example pulldown_incremental");
+}
+
+#[cfg(feature = "pulldown")]
+fn main() {
+    use mdstream::adapters::pulldown::{PulldownAdapter, PulldownAdapterOptions};
+    use mdstream::{MdStream, Options, ReferenceDefinitionsMode};
+    use pulldown_cmark::{Event, Options as PulldownOptions, Tag};
+
     let mut opts = Options::default();
     // Optional: demonstrate invalidation when reference definitions arrive late.
     opts.reference_definitions = ReferenceDefinitionsMode::Invalidate;
@@ -44,7 +51,7 @@ fn main() {
 
         if let Some(p) = &update.pending {
             let events = adapter.parse_pending(p);
-            let has_link = events.iter().any(|e| matches!(e, pulldown_cmark::Event::Start(Tag::Link { .. })));
+            let has_link = events.iter().any(|e| matches!(e, Event::Start(Tag::Link { .. })));
             println!(
                 "pending block id={} kind={:?} events.len={} has_link={}",
                 p.id.0,
@@ -57,4 +64,3 @@ fn main() {
         }
     }
 }
-
