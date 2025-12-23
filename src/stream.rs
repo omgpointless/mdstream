@@ -405,9 +405,10 @@ impl MdStream {
         &self.buffer
     }
 
-    pub fn snapshot_blocks(&self) -> Vec<Block> {
+    pub fn snapshot_blocks(&mut self) -> Vec<Block> {
         let mut blocks = self.committed.clone();
-        // Pending is computed without mutating state.
+        // Pending is computed without mutating structural state, but pending transformers may
+        // choose to keep internal state.
         if let Some(p) = self.pending_block_snapshot() {
             blocks.push(p);
         }
@@ -849,7 +850,7 @@ impl MdStream {
         }
     }
 
-    fn pending_block_snapshot(&self) -> Option<Block> {
+    fn pending_block_snapshot(&mut self) -> Option<Block> {
         if self.opts.footnotes == FootnotesMode::SingleBlock && self.footnotes_detected {
             let raw = self.buffer.clone();
             if raw.is_empty() {
@@ -944,11 +945,16 @@ impl MdStream {
         p
     }
 
-    fn transform_pending_display(&self, kind: BlockKind, raw: &str, mut display: String) -> String {
+    fn transform_pending_display(
+        &mut self,
+        kind: BlockKind,
+        raw: &str,
+        mut display: String,
+    ) -> String {
         if self.pending_transformers.is_empty() {
             return display;
         }
-        for t in &self.pending_transformers {
+        for t in &mut self.pending_transformers {
             if let Some(next) = t.transform(PendingTransformInput {
                 kind,
                 raw,
@@ -1124,7 +1130,7 @@ impl MdStream {
         self.next_block_id = 2;
         self.current_mode = BlockMode::Unknown;
         self.pending_display_cache = None;
-        for t in &self.pending_transformers {
+        for t in &mut self.pending_transformers {
             t.reset();
         }
         for p in self.boundary_plugins.iter_mut() {

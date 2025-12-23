@@ -7,7 +7,7 @@ pub struct PendingTransformInput<'a> {
     pub display: &'a str,
 }
 
-pub trait PendingTransformer: Send + Sync {
+pub trait PendingTransformer: Send {
     /// Transform the pending display string.
     ///
     /// - `kind` is a best-effort hint (block-level).
@@ -15,18 +15,18 @@ pub trait PendingTransformer: Send + Sync {
     /// - `display` is the current pending display string (already includes built-in termination/repair).
     ///
     /// Return `Some(new_display)` to replace `display`, or `None` to leave it unchanged.
-    fn transform(&self, input: PendingTransformInput<'_>) -> Option<String>;
+    fn transform(&mut self, input: PendingTransformInput<'_>) -> Option<String>;
 
-    fn reset(&self) {}
+    fn reset(&mut self) {}
 }
 
 pub struct FnPendingTransformer<F>(pub F);
 
 impl<F> PendingTransformer for FnPendingTransformer<F>
 where
-    for<'a> F: Fn(PendingTransformInput<'a>) -> Option<String> + Send + Sync,
+    for<'a> F: FnMut(PendingTransformInput<'a>) -> Option<String> + Send,
 {
-    fn transform(&self, input: PendingTransformInput<'_>) -> Option<String> {
+    fn transform(&mut self, input: PendingTransformInput<'_>) -> Option<String> {
         (self.0)(input)
     }
 }
@@ -59,7 +59,7 @@ impl Default for IncompleteLinkPlaceholderTransformer {
 }
 
 impl PendingTransformer for IncompleteLinkPlaceholderTransformer {
-    fn transform(&self, input: PendingTransformInput<'_>) -> Option<String> {
+    fn transform(&mut self, input: PendingTransformInput<'_>) -> Option<String> {
         // Avoid touching code fences entirely.
         if matches!(input.kind, BlockKind::CodeFence) {
             return None;
@@ -95,7 +95,7 @@ impl Default for IncompleteImageDropTransformer {
 }
 
 impl PendingTransformer for IncompleteImageDropTransformer {
-    fn transform(&self, input: PendingTransformInput<'_>) -> Option<String> {
+    fn transform(&mut self, input: PendingTransformInput<'_>) -> Option<String> {
         if matches!(input.kind, BlockKind::CodeFence) {
             return None;
         }

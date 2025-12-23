@@ -1,6 +1,6 @@
 use mdstream::{BlockKind, MdStream, Options};
 
-fn snapshot_kinds_and_raw(s: &MdStream) -> Vec<(BlockKind, String)> {
+fn snapshot_kinds_and_raw(s: &mut MdStream) -> Vec<(BlockKind, String)> {
     s.snapshot_blocks()
         .into_iter()
         .map(|b| (b.kind, b.raw))
@@ -26,11 +26,9 @@ fn streamdown_benchmark_streaming_text_steps_match_full_parse_per_step() {
         let mut scratch = MdStream::new(opts.clone());
         scratch.append(&step);
 
-        assert_eq!(
-            snapshot_kinds_and_raw(&incremental),
-            snapshot_kinds_and_raw(&scratch),
-            "step {i} mismatch"
-        );
+        let incremental_snapshot = snapshot_kinds_and_raw(&mut incremental);
+        let scratch_snapshot = snapshot_kinds_and_raw(&mut scratch);
+        assert_eq!(incremental_snapshot, scratch_snapshot, "step {i} mismatch");
     }
 }
 
@@ -60,11 +58,9 @@ fn streamdown_benchmark_streaming_code_steps_match_full_parse_per_step() {
         let mut scratch = MdStream::new(opts.clone());
         scratch.append(step);
 
-        assert_eq!(
-            snapshot_kinds_and_raw(&incremental),
-            snapshot_kinds_and_raw(&scratch),
-            "step {i} mismatch"
-        );
+        let incremental_snapshot = snapshot_kinds_and_raw(&mut incremental);
+        let scratch_snapshot = snapshot_kinds_and_raw(&mut scratch);
+        assert_eq!(incremental_snapshot, scratch_snapshot, "step {i} mismatch");
 
         prev = step;
     }
