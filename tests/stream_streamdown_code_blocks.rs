@@ -1,6 +1,9 @@
 use mdstream::{BlockKind, MdStream, Options};
 
-fn collect_final_blocks(chunks: impl IntoIterator<Item = String>, opts: Options) -> Vec<(BlockKind, String)> {
+fn collect_final_blocks(
+    chunks: impl IntoIterator<Item = String>,
+    opts: Options,
+) -> Vec<(BlockKind, String)> {
     let mut s = MdStream::new(opts);
     let mut out = Vec::new();
 
@@ -64,7 +67,8 @@ fn streamdown_benchmark_single_code_block() {
 #[test]
 fn streamdown_benchmark_multiple_code_blocks() {
     // From Streamdown's parse-blocks benchmark ("multiple code blocks").
-    let markdown = "```javascript\nconst x = 1;\n```\n\n```python\ny = 2\n```\n\n```rust\nlet z = 3;\n```\n";
+    let markdown =
+        "```javascript\nconst x = 1;\n```\n\n```python\ny = 2\n```\n\n```rust\nlet z = 3;\n```\n";
 
     let opts = Options::default();
     let blocks_whole = collect_final_blocks(chunk_whole(markdown), opts.clone());
@@ -104,4 +108,3 @@ fn streamdown_benchmark_large_code_block_1000_lines() {
     assert!(blocks_whole[0].1.starts_with("```javascript\n"));
     assert!(blocks_whole[0].1.ends_with("```"));
 }
-

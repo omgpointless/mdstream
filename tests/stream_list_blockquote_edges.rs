@@ -1,6 +1,9 @@
 use mdstream::{BlockKind, MdStream, Options};
 
-fn collect_final_blocks(chunks: impl IntoIterator<Item = String>, opts: Options) -> Vec<(BlockKind, String)> {
+fn collect_final_blocks(
+    chunks: impl IntoIterator<Item = String>,
+    opts: Options,
+) -> Vec<(BlockKind, String)> {
     let mut s = MdStream::new(opts);
     let mut out = Vec::new();
 
@@ -70,7 +73,11 @@ fn list_allows_multiline_item_then_next_item_chunking_invariance() {
 
     assert_eq!(blocks_whole.len(), 2);
     assert_eq!(blocks_whole[0].0, BlockKind::List);
-    assert!(blocks_whole[0].1.contains("- item 1\n  continued line\n- item 2\n\n"));
+    assert!(
+        blocks_whole[0]
+            .1
+            .contains("- item 1\n  continued line\n- item 2\n\n")
+    );
     assert_eq!(blocks_whole[1].1, "After\n");
 }
 
@@ -88,9 +95,11 @@ fn list_allows_blank_line_then_indented_continuation_chunking_invariance() {
 
     assert_eq!(blocks_whole.len(), 2);
     assert_eq!(blocks_whole[0].0, BlockKind::List);
-    assert!(blocks_whole[0]
-        .1
-        .contains("- item 1\n\n  continuation after blank\n- item 2\n\n"));
+    assert!(
+        blocks_whole[0]
+            .1
+            .contains("- item 1\n\n  continuation after blank\n- item 2\n\n")
+    );
     assert_eq!(blocks_whole[1].1, "After\n");
 }
 
@@ -108,7 +117,11 @@ fn task_list_items_are_stable_chunking_invariance() {
 
     assert_eq!(blocks_whole.len(), 2);
     assert_eq!(blocks_whole[0].0, BlockKind::List);
-    assert!(blocks_whole[0].1.contains("- [x] done\n  more\n- [ ] todo\n\n"));
+    assert!(
+        blocks_whole[0]
+            .1
+            .contains("- [x] done\n  more\n- [ ] todo\n\n")
+    );
     assert_eq!(blocks_whole[1].1, "After\n");
 }
 
@@ -126,9 +139,10 @@ fn blockquote_lazy_continuation_is_stable_chunking_invariance() {
 
     assert_eq!(blocks_whole.len(), 2);
     assert_eq!(blocks_whole[0].0, BlockKind::BlockQuote);
-    assert!(blocks_whole[0]
-        .1
-        .contains("> quote line 1\nlazy continuation\n> quote line 2\n\n"));
+    assert!(
+        blocks_whole[0]
+            .1
+            .contains("> quote line 1\nlazy continuation\n> quote line 2\n\n")
+    );
     assert_eq!(blocks_whole[1].1, "After\n");
 }
-

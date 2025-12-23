@@ -40,4 +40,3 @@ fn returns_none_for_non_code_fence_blocks() {
     assert_eq!(b.code_fence_language(), None);
     assert!(b.code_fence_header().is_none());
 }
-

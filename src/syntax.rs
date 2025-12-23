@@ -108,4 +108,3 @@ pub fn is_list_marker_line_prefix(line: &str) -> bool {
     }
     has_ws
 }
-

@@ -74,7 +74,6 @@ Purpose: transform the pending block into a safer `display` string for downstrea
 Examples:
 
 - remend-like termination for incomplete Markdown
-- fenced JSON repair via `jsonrepair` (opt-in)
 - custom placeholder replacement
 
 Guidelines:

@@ -24,7 +24,7 @@ It targets LLM token-by-token / chunk-by-chunk output and helps downstream UIs (
   - A single **pending block**: may change while streaming (UI updates only this block).
 - A **pending pipeline** can optionally produce a `display` view for the pending block:
   - Markdown terminator (remend-like) for incomplete constructs near the tail.
-  - Optional fenced-JSON repair via `jsonrepair` (explicit opt-in).
+  - Custom transforms via `PendingTransformer` (eg placeholders, sanitizers).
 
 ## Documentation
 

@@ -93,4 +93,3 @@ For more info, see [documentation](https://example.com).
     assert_eq!(blocks_lines, blocks_whole);
     assert_eq!(blocks_rand, blocks_whole);
 }
-

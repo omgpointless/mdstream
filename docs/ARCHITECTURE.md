@@ -99,9 +99,8 @@ Default design is inspired by Streamdown `remend` but implemented in Rust:
 - only scans a tail window (eg 16KiB) to keep per-tick cost bounded
 - never modifies committed text
 
-Optional transformer:
-
-- fenced JSON repair using `jsonrepair` (opt-in, only inside ```json fences)
+Note: `mdstream` does not include domain-specific transforms (eg tool-call JSON repair).
+Consumers can implement them via `PendingTransformer` when needed.
 
 ## Cross-block Semantics Strategy
 

@@ -15,7 +15,6 @@ This roadmap is intentionally practical: it prioritizes streaming stability and 
 - Unit tests covering streaming edge cases
 - Regression tests ported from Streamdown benchmarks (incrementally)
 - Reference-style link definitions invalidation (opt-in mode)
-- Optional fenced-JSON repair via `jsonrepair` (feature-gated, opt-in)
 - Optional `pulldown-cmark` adapter (feature-gated)
 
 ## v0.2 (Ergonomics + Robustness)

@@ -1,4 +1,6 @@
-use mdstream::{AnalyzedStream, BlockAnalyzer, CodeFenceAnalyzer, CodeFenceClass, CodeFenceMeta, Options};
+use mdstream::{
+    AnalyzedStream, BlockAnalyzer, CodeFenceAnalyzer, CodeFenceClass, CodeFenceMeta, Options,
+};
 
 #[test]
 fn analyzed_stream_emits_pending_and_committed_meta_for_code_fences() {
@@ -54,10 +56,10 @@ fn tuple_analyzer_can_be_chained() {
     let mut s = AnalyzedStream::new(Options::default(), analyzer);
 
     let u1 = s.append("hi\n\n```json\n");
-    assert!(u1
-        .committed_meta
-        .iter()
-        .any(|m| m.meta.1 == Some("p") && m.id == u1.update.committed[0].id));
+    assert!(
+        u1.committed_meta
+            .iter()
+            .any(|m| m.meta.1 == Some("p") && m.id == u1.update.committed[0].id)
+    );
     assert!(u1.pending_meta.is_some());
 }
-

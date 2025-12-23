@@ -186,8 +186,7 @@ fn apply_setext_heading_protection(text: &str) -> String {
     let is_ambiguous_dashes = trimmed_last_line == "-" || trimmed_last_line == "--";
     let is_ambiguous_equals = trimmed_last_line == "=" || trimmed_last_line == "==";
 
-    let has_trailing_ws_after_marker =
-        last_line.ends_with(' ') || last_line.ends_with('\t');
+    let has_trailing_ws_after_marker = last_line.ends_with(' ') || last_line.ends_with('\t');
 
     if (is_ambiguous_dashes || is_ambiguous_equals) && !has_trailing_ws_after_marker {
         // Check if the previous line has content (required for setext headings).
@@ -275,7 +274,11 @@ pub(crate) fn fix_incomplete_link_or_image(
         if !is_image && !links_enabled {
             continue;
         }
-        let start = if is_image { open_bracket - 1 } else { open_bracket };
+        let start = if is_image {
+            open_bracket - 1
+        } else {
+            open_bracket
+        };
         let before = &text[..start];
         if is_image {
             return Some(before.to_string());
@@ -401,7 +404,11 @@ fn count_triple_asterisks(text: &str) -> usize {
 fn should_skip_asterisk(text: &str, index: usize) -> bool {
     let bytes = text.as_bytes();
     let prev = if index > 0 { bytes[index - 1] } else { 0 };
-    let next = if index + 1 < bytes.len() { bytes[index + 1] } else { 0 };
+    let next = if index + 1 < bytes.len() {
+        bytes[index + 1]
+    } else {
+        0
+    };
 
     if prev == b'\\' {
         return true;
@@ -419,7 +426,11 @@ fn should_skip_asterisk(text: &str, index: usize) -> bool {
     // - first '*' in '***' is counted as a single asterisk
     // - first '*' in '**' is skipped
     if prev != b'*' && next == b'*' {
-        let next_next = if index + 2 < bytes.len() { bytes[index + 2] } else { 0 };
+        let next_next = if index + 2 < bytes.len() {
+            bytes[index + 2]
+        } else {
+            0
+        };
         if next_next == b'*' {
             return false;
         }
@@ -464,7 +475,11 @@ fn count_single_asterisks(text: &str) -> usize {
 fn should_skip_underscore(text: &str, index: usize) -> bool {
     let bytes = text.as_bytes();
     let prev = if index > 0 { bytes[index - 1] } else { 0 };
-    let next = if index + 1 < bytes.len() { bytes[index + 1] } else { 0 };
+    let next = if index + 1 < bytes.len() {
+        bytes[index + 1]
+    } else {
+        0
+    };
 
     if prev == b'\\' {
         return true;
@@ -785,7 +800,6 @@ fn handle_incomplete_bold_italic(text: &str) -> String {
 }
 
 fn balance_inline_code(text: &str) -> String {
-
     // Inline triple backticks (no newlines): ```code``` or ```code``
     if !text.contains('\n') && text.starts_with("```") {
         let bytes = text.as_bytes();

@@ -18,7 +18,8 @@ fn main() {
     let mut opts = Options::default();
     // Optional: demonstrate invalidation when reference definitions arrive late.
     opts.reference_definitions = ReferenceDefinitionsMode::Invalidate;
-    let mut s = MdStream::new(opts).with_pending_transformer(mdstream::IncompleteLinkPlaceholderTransformer::default());
+    let mut s = MdStream::new(opts)
+        .with_pending_transformer(mdstream::IncompleteLinkPlaceholderTransformer::default());
     s.push_pending_transformer(mdstream::IncompleteImageDropTransformer::default());
 
     let mut adapter = PulldownAdapter::new(PulldownAdapterOptions {
@@ -51,7 +52,9 @@ fn main() {
 
         if let Some(p) = &update.pending {
             let events = adapter.parse_pending(p);
-            let has_link = events.iter().any(|e| matches!(e, Event::Start(Tag::Link { .. })));
+            let has_link = events
+                .iter()
+                .any(|e| matches!(e, Event::Start(Tag::Link { .. })));
             println!(
                 "pending block id={} kind={:?} events.len={} has_link={}",
                 p.id.0,

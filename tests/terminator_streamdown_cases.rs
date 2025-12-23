@@ -1,13 +1,28 @@
-use mdstream::pending::{terminate_markdown, TerminatorOptions};
+use mdstream::pending::{TerminatorOptions, terminate_markdown};
 
 #[test]
 fn setext_heading_protection() {
     let opts = TerminatorOptions::default();
-    assert_eq!(terminate_markdown("here is a list\n-", &opts), "here is a list\n-\u{200B}");
-    assert_eq!(terminate_markdown("Some text\n--", &opts), "Some text\n--\u{200B}");
-    assert_eq!(terminate_markdown("Some text\n=", &opts), "Some text\n=\u{200B}");
-    assert_eq!(terminate_markdown("Some text\n==", &opts), "Some text\n==\u{200B}");
-    assert_eq!(terminate_markdown("Some text\n---", &opts), "Some text\n---");
+    assert_eq!(
+        terminate_markdown("here is a list\n-", &opts),
+        "here is a list\n-\u{200B}"
+    );
+    assert_eq!(
+        terminate_markdown("Some text\n--", &opts),
+        "Some text\n--\u{200B}"
+    );
+    assert_eq!(
+        terminate_markdown("Some text\n=", &opts),
+        "Some text\n=\u{200B}"
+    );
+    assert_eq!(
+        terminate_markdown("Some text\n==", &opts),
+        "Some text\n==\u{200B}"
+    );
+    assert_eq!(
+        terminate_markdown("Some text\n---", &opts),
+        "Some text\n---"
+    );
     assert_eq!(terminate_markdown("Heading\n===", &opts), "Heading\n===");
 }
 
@@ -43,7 +58,8 @@ fn no_incomplete_link_markers_inside_code_fences() {
 fn incomplete_link_outside_code_fences_is_fixed() {
     let opts = TerminatorOptions::default();
     let text = "```bash\necho \"test\"\n```\nAnd here's an [incomplete link";
-    let expected = "```bash\necho \"test\"\n```\nAnd here's an [incomplete link](streamdown:incomplete-link)";
+    let expected =
+        "```bash\necho \"test\"\n```\nAnd here's an [incomplete link](streamdown:incomplete-link)";
     assert_eq!(terminate_markdown(text, &opts), expected);
 }
 
@@ -54,10 +70,7 @@ fn streaming_nested_formatting_examples() {
         terminate_markdown("This is **bold with *ital", &opts),
         "This is **bold with *ital*"
     );
-    assert_eq!(
-        terminate_markdown("**bold _und", &opts),
-        "**bold _und_**"
-    );
+    assert_eq!(terminate_markdown("**bold _und", &opts), "**bold _und_**");
     assert_eq!(
         terminate_markdown("To use this function, call `getData(", &opts),
         "To use this function, call `getData(`"

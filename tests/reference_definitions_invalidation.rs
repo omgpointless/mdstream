@@ -36,4 +36,3 @@ fn stability_first_mode_does_not_emit_invalidations() {
     let u3 = s.append("Next\n");
     assert!(u3.invalidated.is_empty());
 }
-

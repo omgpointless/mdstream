@@ -3,9 +3,9 @@ use mdstream::{FnPendingTransformer, MdStream, Options};
 #[test]
 fn pending_transformer_can_override_display() {
     let mut s = MdStream::new(Options::default());
-    s.push_pending_transformer(FnPendingTransformer(|input: mdstream::PendingTransformInput<'_>| {
-        Some(format!("{}<<t>>", input.display))
-    }));
+    s.push_pending_transformer(FnPendingTransformer(
+        |input: mdstream::PendingTransformInput<'_>| Some(format!("{}<<t>>", input.display)),
+    ));
 
     let u1 = s.append("hi");
     let p1 = u1.pending.expect("pending");
@@ -25,9 +25,8 @@ fn built_in_incomplete_link_placeholder_transformer_can_be_enabled() {
     opts.terminator.links = false;
     opts.terminator.images = false;
 
-    let mut s = MdStream::new(opts).with_pending_transformer(
-        mdstream::IncompleteLinkPlaceholderTransformer::default(),
-    );
+    let mut s = MdStream::new(opts)
+        .with_pending_transformer(mdstream::IncompleteLinkPlaceholderTransformer::default());
 
     let u = s.append("See [docs](");
     let p = u.pending.expect("pending");
@@ -44,8 +43,8 @@ fn built_in_incomplete_image_drop_transformer_can_be_enabled() {
     opts.terminator.links = false;
     opts.terminator.images = false;
 
-    let mut s =
-        MdStream::new(opts).with_pending_transformer(mdstream::IncompleteImageDropTransformer::default());
+    let mut s = MdStream::new(opts)
+        .with_pending_transformer(mdstream::IncompleteImageDropTransformer::default());
 
     let u = s.append("Before ![alt](");
     let p = u.pending.expect("pending");

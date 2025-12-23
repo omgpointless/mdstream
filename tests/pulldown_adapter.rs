@@ -18,6 +18,9 @@ fn parses_committed_blocks_and_pending_display() {
     let p = u1.pending.unwrap();
     let pending_events = adapter.parse_pending(&p);
     // Pending display should be terminated: "**bold**"
-    assert!(pending_events.iter().any(|e| matches!(e, Event::Start(Tag::Strong))));
+    assert!(
+        pending_events
+            .iter()
+            .any(|e| matches!(e, Event::Start(Tag::Strong)))
+    );
 }
-

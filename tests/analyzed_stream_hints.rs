@@ -36,4 +36,3 @@ fn hint_marks_unbalanced_math_block() {
     let meta2 = u2.pending_meta.expect("pending meta").meta;
     assert!(!meta2.has(BlockHintMeta::UNBALANCED_MATH));
 }
-

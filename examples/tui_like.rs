@@ -101,5 +101,8 @@ fn main() {
     for b in &u.update.committed {
         print_block("committed", b.id.0, b.kind, &b.raw);
     }
-    println!("pending: {:?}", u.update.pending.as_ref().map(|b| (b.id.0, b.kind)));
+    println!(
+        "pending: {:?}",
+        u.update.pending.as_ref().map(|b| (b.id.0, b.kind))
+    );
 }

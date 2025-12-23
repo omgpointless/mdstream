@@ -5,9 +5,7 @@ edition = "2024"
 
 [dependencies]
 pulldown-cmark = { version = "0.13", optional = true }
-jsonrepair = { version = "0.1", optional = true }
 
 [features]
 default = []
 pulldown = ["dep:pulldown-cmark"]
-jsonrepair = ["dep:jsonrepair"]

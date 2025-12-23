@@ -20,4 +20,3 @@ fn math_analyzer_marks_pending_unbalanced_then_committed_balanced() {
     assert!(u2.committed_meta.iter().any(|m| m.meta.balanced));
     assert_eq!(u2.update.pending.as_ref().unwrap().raw, "After\n");
 }
-

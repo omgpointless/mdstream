@@ -1,4 +1,4 @@
-use mdstream::pending::{terminate_markdown, TerminatorOptions};
+use mdstream::pending::{TerminatorOptions, terminate_markdown};
 
 fn remend(text: &str) -> String {
     terminate_markdown(text, &TerminatorOptions::default())
@@ -62,7 +62,10 @@ fn math_blocks_with_underscores_and_asterisks() {
     let text = "_italic text_ followed by $a_b$";
     assert_eq!(remend(text), text);
 
-    assert_eq!(remend("Start _italic with $x_1$"), "Start _italic with $x_1$_");
+    assert_eq!(
+        remend("Start _italic with $x_1$"),
+        "Start _italic with $x_1$_"
+    );
 
     let text = "$x_1 + x_2 + x_3 = y_1$";
     assert_eq!(remend(text), text);
@@ -97,8 +100,7 @@ fn math_blocks_with_underscores_and_asterisks() {
 
     let text = "$$\\mathbf{w}^{*}$$";
     assert_eq!(remend(text), text);
-    let text =
-        "$$\n\\mathbf{w}^{*} = \\underset{\\|\\mathbf{w}\\|=1}{\\arg\\max} \\;\\; \\mathbf{w}^T S \\mathbf{w}\n$$";
+    let text = "$$\n\\mathbf{w}^{*} = \\underset{\\|\\mathbf{w}\\|=1}{\\arg\\max} \\;\\; \\mathbf{w}^T S \\mathbf{w}\n$$";
     assert_eq!(remend(text), text);
     let text = "Text with *italic* and math $$x^{*}$$";
     assert_eq!(remend(text), text);
@@ -180,7 +182,10 @@ fn streaming_scenarios() {
     assert_eq!(remend(chunks[1]), "Here is a **bold**");
     assert_eq!(remend(chunks[2]), "Here is a **bold statement**");
     assert_eq!(remend(chunks[3]), chunks[3]);
-    assert_eq!(remend(chunks[4]), "Here is a **bold statement** about `code`");
+    assert_eq!(
+        remend(chunks[4]),
+        "Here is a **bold statement** about `code`"
+    );
     assert_eq!(remend(chunks[5]), chunks[5]);
 
     let chunks = [
@@ -345,7 +350,10 @@ fn inline_code_and_code_blocks() {
     let text = "text``````";
     assert_eq!(remend(text), text);
 
-    assert_eq!(remend("```\nblock\n```\n`inline"), "```\nblock\n```\n`inline`");
+    assert_eq!(
+        remend("```\nblock\n```\n`inline"),
+        "```\nblock\n```\n`inline`"
+    );
 }
 
 #[test]
@@ -421,7 +429,10 @@ fn list_handling() {
     assert_eq!(remend("- __ text after"), "- __ text after__");
     assert_eq!(remend("- ** text after"), "- ** text after**");
 
-    assert_eq!(remend("- __\n- Normal item\n- **"), "- __\n- Normal item\n- **");
+    assert_eq!(
+        remend("- __\n- Normal item\n- **"),
+        "- __\n- Normal item\n- **"
+    );
 
     assert_eq!(remend("- ***"), "- ***");
     assert_eq!(remend("- *"), "- *");
@@ -528,10 +539,7 @@ fn bold_italic_and_strikethrough() {
     assert_eq!(remend(text), text);
     let text = "**bold1** and **bold2**";
     assert_eq!(remend(text), text);
-    assert_eq!(
-        remend("**first** and **second"),
-        "**first** and **second**"
-    );
+    assert_eq!(remend("**first** and **second"), "**first** and **second**");
     assert_eq!(
         remend("Here is some **bold tex"),
         "Here is some **bold tex**"
@@ -569,10 +577,7 @@ fn bold_italic_and_strikethrough() {
     assert_eq!(remend(text), text);
     let text = "~~strike1~~ and ~~strike2~~";
     assert_eq!(remend(text), text);
-    assert_eq!(
-        remend("~~first~~ and ~~second"),
-        "~~first~~ and ~~second~~"
-    );
+    assert_eq!(remend("~~first~~ and ~~second"), "~~first~~ and ~~second~~");
 }
 
 #[test]
@@ -581,10 +586,7 @@ fn asterisk_and_underscore_italics() {
     assert_eq!(remend("__incomplete"), "__incomplete__");
     let text = "Text with __italic text__";
     assert_eq!(remend(text), text);
-    assert_eq!(
-        remend("__first__ and __second"),
-        "__first__ and __second__"
-    );
+    assert_eq!(remend("__first__ and __second"), "__first__ and __second__");
 
     assert_eq!(remend("Text with *italic"), "Text with *italic*");
     assert_eq!(remend("*incomplete"), "*incomplete*");

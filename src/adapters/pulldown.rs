@@ -112,7 +112,11 @@ impl PulldownAdapter {
         map.insert(label.to_string(), def_line.to_string());
         let mut defs: Vec<_> = map.into_iter().collect();
         defs.sort_by(|a, b| a.0.cmp(&b.0));
-        self.reference_definitions = defs.into_iter().map(|(_, v)| v).collect::<Vec<_>>().join("\n");
+        self.reference_definitions = defs
+            .into_iter()
+            .map(|(_, v)| v)
+            .collect::<Vec<_>>()
+            .join("\n");
     }
 }
 

@@ -27,14 +27,28 @@ fn streamdown_benchmark_streaming_code_block_9_steps() {
     let mut s = MdStream::new(Options::default());
 
     // Deltas between Streamdown's "full text per step" examples.
-    let deltas = ["```javascript", "\n", "const", " x", " =", " 1", ";", "\n", "```"];
+    let deltas = [
+        "```javascript",
+        "\n",
+        "const",
+        " x",
+        " =",
+        " 1",
+        ";",
+        "\n",
+        "```",
+    ];
 
     let mut acc = String::new();
     for (i, d) in deltas.iter().enumerate() {
         let u = s.append(d);
         acc.push_str(d);
         assert!(u.committed.is_empty(), "step {i} should not commit");
-        assert_eq!(u.pending.as_ref().unwrap().raw, acc, "step {i} raw mismatch");
+        assert_eq!(
+            u.pending.as_ref().unwrap().raw,
+            acc,
+            "step {i} raw mismatch"
+        );
     }
 
     // The closing fence line may not end with a newline; we only commit at finalize.
@@ -43,4 +57,3 @@ fn streamdown_benchmark_streaming_code_block_9_steps() {
     assert_eq!(uf.committed[0].kind, BlockKind::CodeFence);
     assert_eq!(uf.committed[0].raw, acc);
 }
-

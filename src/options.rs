@@ -28,9 +28,6 @@ pub struct Options {
     pub terminator_window_bytes: usize,
     /// Optional hard cap for the internal buffer.
     pub max_buffer_bytes: Option<usize>,
-    /// If enabled (and the `jsonrepair` feature is on), repair JSON inside fenced JSON blocks
-    /// for the pending display string.
-    pub json_repair_in_fences: bool,
 }
 
 impl Default for Options {
@@ -41,7 +38,6 @@ impl Default for Options {
             terminator: TerminatorOptions::default(),
             terminator_window_bytes: 16 * 1024,
             max_buffer_bytes: None,
-            json_repair_in_fences: false,
         }
     }
 }

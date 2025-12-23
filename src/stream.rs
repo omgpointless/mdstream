@@ -35,7 +35,6 @@ enum BlockMode {
     CodeFence {
         fence_char: char,
         fence_len: usize,
-        info: Option<String>,
     },
     CustomBoundary {
         plugin_index: usize,
@@ -829,23 +828,9 @@ impl MdStream {
             return BlockMode::ThematicBreak;
         }
         if let Some((ch, len)) = fence_start(line) {
-            // Parse optional info string after the fence.
-            let s = line.trim_start();
-            // Skip leading fence markers.
-            let mut idx = 0usize;
-            while idx < s.len() && s.as_bytes()[idx] == ch as u8 {
-                idx += 1;
-            }
-            let info = s[idx..].trim();
-            let info = if info.is_empty() {
-                None
-            } else {
-                Some(info.to_string())
-            };
             return BlockMode::CodeFence {
                 fence_char: ch,
                 fence_len: len,
-                info,
             };
         }
         if is_footnote_definition_start(line) {
@@ -1180,7 +1165,6 @@ impl MdStream {
             BlockMode::CodeFence {
                 fence_char,
                 fence_len,
-                ..
             } => {
                 if fence_end(line, *fence_char, *fence_len) {
                     self.commit_block(line_index, update);
@@ -1285,7 +1269,6 @@ impl MdStream {
         }
         let kind = Self::kind_for_mode(&self.current_mode);
         let mut display = terminate_markdown(&raw, &self.opts.terminator);
-        display = self.maybe_repair_fenced_json_display(&raw, display, &self.current_mode);
         display = self.transform_pending_display(kind, &raw, display);
         Some(Block {
             id: self.current_block_id,
@@ -1340,67 +1323,6 @@ impl MdStream {
             }
         }
         p
-    }
-
-    fn maybe_repair_fenced_json_display(
-        &self,
-        raw: &str,
-        display: String,
-        mode: &BlockMode,
-    ) -> String {
-        if !self.opts.json_repair_in_fences {
-            return display;
-        }
-        let BlockMode::CodeFence { info, .. } = mode else {
-            return display;
-        };
-        let Some(info) = info.as_deref() else {
-            return display;
-        };
-        let lang = info
-            .split_whitespace()
-            .next()
-            .unwrap_or("")
-            .to_ascii_lowercase();
-        if !matches!(
-            lang.as_str(),
-            "json" | "jsonc" | "json5" | "jsonl" | "jsonp"
-        ) {
-            return display;
-        }
-
-        #[cfg(feature = "jsonrepair")]
-        {
-            // Extract code body (best-effort): text after the first newline, stopping before a closing fence line.
-            let Some(first_nl) = raw.find('\n') else {
-                return display;
-            };
-            let mut body = &raw[first_nl + 1..];
-            if let Some(close_line_start) =
-                body.match_indices('\n').map(|(i, _)| i + 1).find(|&i| {
-                    let line = &body[i..body[i..].find('\n').map(|r| i + r).unwrap_or(body.len())];
-                    fence_start(line).is_some()
-                })
-            {
-                body = &body[..close_line_start];
-            }
-            let repaired = match jsonrepair::repair_json(body, &jsonrepair::Options::default()) {
-                Ok(s) => s,
-                Err(_) => return display,
-            };
-            // Rebuild: keep opening fence line, then repaired content, then keep the rest (if any).
-            let mut out = String::with_capacity(display.len());
-            let open_line = &raw[..first_nl + 1];
-            out.push_str(open_line);
-            out.push_str(&repaired);
-            return out;
-        }
-
-        #[cfg(not(feature = "jsonrepair"))]
-        {
-            let _ = raw;
-            display
-        }
     }
 
     fn transform_pending_display(&self, kind: BlockKind, raw: &str, mut display: String) -> String {

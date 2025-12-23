@@ -49,7 +49,13 @@ fn streamdown_benchmark_single_block() {
     assert_eq!(blocks_lines, blocks_whole);
     assert_eq!(blocks_rand, blocks_whole);
 
-    assert_eq!(blocks_whole, vec!["# Heading\n".to_string(), "This is a paragraph.".to_string()]);
+    assert_eq!(
+        blocks_whole,
+        vec![
+            "# Heading\n".to_string(),
+            "This is a paragraph.".to_string()
+        ]
+    );
 }
 
 #[test]
@@ -80,7 +86,11 @@ This is paragraph 2.
 
     // Sanity checks: key blocks exist and order is stable.
     assert!(blocks_whole.iter().any(|b| b == "# Heading 1\n"));
-    assert!(blocks_whole.iter().any(|b| b.contains("This is paragraph 1.")));
+    assert!(
+        blocks_whole
+            .iter()
+            .any(|b| b.contains("This is paragraph 1."))
+    );
     assert!(blocks_whole.iter().any(|b| b == "## Heading 2\n"));
     assert!(blocks_whole.iter().any(|b| b.contains("- List item 1")));
     assert!(blocks_whole.iter().any(|b| b.contains("> Blockquote text")));
@@ -110,4 +120,3 @@ fn streamdown_benchmark_many_blocks_100() {
     assert!(blocks_whole[blocks_whole.len() - 2].starts_with("## Section 99"));
     assert!(blocks_whole[blocks_whole.len() - 1].starts_with("Paragraph 99"));
 }
-

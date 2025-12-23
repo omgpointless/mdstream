@@ -44,4 +44,3 @@ fn footnotes_single_block_mode() {
     assert_eq!(u3.committed.len(), 1);
     assert!(u3.pending.is_none());
 }
-

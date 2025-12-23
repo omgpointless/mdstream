@@ -5,7 +5,9 @@ use mdstream::{MdStream, Options, ReferenceDefinitionsMode};
 use pulldown_cmark::{Event, Tag};
 
 fn contains_link(events: &[Event<'static>]) -> bool {
-    events.iter().any(|e| matches!(e, Event::Start(Tag::Link { .. })))
+    events
+        .iter()
+        .any(|e| matches!(e, Event::Start(Tag::Link { .. })))
 }
 
 #[test]
@@ -34,6 +36,8 @@ fn pulldown_adapter_reparses_invalidated_blocks_with_reference_definitions() {
 
     assert!(u2.invalidated.contains(&block1_id));
     let e2 = a.committed_events(block1_id).expect("events");
-    assert!(contains_link(e2), "block should be re-parsed with definitions");
+    assert!(
+        contains_link(e2),
+        "block should be re-parsed with definitions"
+    );
 }
-

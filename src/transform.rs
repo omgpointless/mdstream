@@ -88,7 +88,9 @@ pub struct IncompleteImageDropTransformer {
 
 impl Default for IncompleteImageDropTransformer {
     fn default() -> Self {
-        Self { window_bytes: 16 * 1024 }
+        Self {
+            window_bytes: 16 * 1024,
+        }
     }
 }
 

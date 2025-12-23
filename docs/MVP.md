@@ -38,7 +38,6 @@ Remend-like termination for incomplete syntax near the tail (pending only):
 
 ### Optional (SHOULD)
 
-- Fenced JSON repair inside ```json / ```jsonc / ```json5 (opt-in, using `jsonrepair`)
 - `pulldown-cmark` adapter (feature-gated) for Rust UI/TUI ecosystems
 - Boundary extension points (custom containers/directives) via `BoundaryPlugin`
 
