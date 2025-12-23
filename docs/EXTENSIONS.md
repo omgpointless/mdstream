@@ -34,6 +34,25 @@ Guidelines:
 - operate on a tail window to keep cost bounded
 - never change committed blocks
 
+Status: implemented (MVP-level).
+
+`mdstream` provides:
+
+- `PendingTransformer` trait
+- `MdStream::push_pending_transformer(...)` and `MdStream::with_pending_transformer(...)`
+
+Minimal example:
+
+```rust
+use mdstream::{FnPendingTransformer, MdStream, Options};
+
+let mut s = MdStream::new(Options::default());
+// Append a marker so downstream parsers never see an empty string.
+s.push_pending_transformer(FnPendingTransformer(|input| {
+    if input.display.is_empty() { Some("<empty>".to_string()) } else { None }
+}));
+```
+
 ### 3) BlockAnalyzer
 
 Purpose: extract metadata from blocks without changing text.
