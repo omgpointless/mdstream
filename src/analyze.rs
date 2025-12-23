@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use crate::syntax::{is_code_fence_closing_line, parse_code_fence_header_from_block};
+use crate::types::BlockStatus;
 use crate::types::{Block, BlockId, BlockKind, Update};
 use crate::{MdStream, Options};
-use crate::types::BlockStatus;
 
 pub trait BlockAnalyzer {
     type Meta: Clone;
@@ -309,5 +309,159 @@ impl BlockAnalyzer for BlockHintAnalyzer {
         }
 
         Some(BlockHintMeta { flags })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaggedBlockMeta {
+    pub tag: String,
+    pub attributes: Option<String>,
+    pub closed: bool,
+    /// Raw content between the opening/closing tag lines.
+    ///
+    /// If the closing tag is not present yet (pending), this includes everything after the opening
+    /// tag line.
+    pub content: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct TaggedBlockAnalyzer {
+    /// If set, only tags in this allowlist produce meta.
+    pub allowed_tags: Option<Vec<String>>,
+    pub case_insensitive: bool,
+}
+
+impl Default for TaggedBlockAnalyzer {
+    fn default() -> Self {
+        Self {
+            allowed_tags: None,
+            case_insensitive: true,
+        }
+    }
+}
+
+fn custom_tag_name_char(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b':'
+}
+
+fn parse_custom_opening_tag(
+    line: &str,
+    case_insensitive: bool,
+) -> Option<(String, Option<String>)> {
+    let s = line.trim_start();
+    if !s.starts_with('<') || s.starts_with("</") {
+        return None;
+    }
+    let Some(gt) = s.find('>') else {
+        return None;
+    };
+    let inside = &s[1..gt];
+    let bytes = inside.as_bytes();
+    if bytes.is_empty() || !bytes[0].is_ascii_alphabetic() {
+        return None;
+    }
+    let mut name_end = 1usize;
+    while name_end < bytes.len() && custom_tag_name_char(bytes[name_end]) {
+        name_end += 1;
+    }
+    let mut name = inside[..name_end].to_string();
+    if case_insensitive {
+        name = name.to_ascii_lowercase();
+    }
+    let attrs = inside[name_end..].trim();
+    let attrs = if attrs.is_empty() {
+        None
+    } else {
+        Some(attrs.to_string())
+    };
+    Some((name, attrs))
+}
+
+fn is_custom_closing_tag(line: &str, tag: &str, case_insensitive: bool) -> bool {
+    let s = line.trim_start();
+    if !s.starts_with("</") {
+        return false;
+    }
+    let Some(gt) = s.find('>') else {
+        return false;
+    };
+    let inside = &s[2..gt];
+    let bytes = inside.as_bytes();
+    if bytes.is_empty() || !bytes[0].is_ascii_alphabetic() {
+        return false;
+    }
+    let mut name_end = 1usize;
+    while name_end < bytes.len() && custom_tag_name_char(bytes[name_end]) {
+        name_end += 1;
+    }
+    let mut name = inside[..name_end].to_string();
+    if case_insensitive {
+        name = name.to_ascii_lowercase();
+    }
+    if name != tag {
+        return false;
+    }
+    // Standalone closing tag line.
+    inside[name_end..].trim().is_empty()
+}
+
+fn split_tag_block_content(raw: &str, tag: &str, case_insensitive: bool) -> (bool, String) {
+    let mut lines: Vec<&str> = raw.split_inclusive('\n').collect();
+    if lines.is_empty() {
+        return (false, String::new());
+    }
+
+    // Remove opening tag line.
+    let _ = lines.remove(0);
+
+    // Remove closing tag line if present (last nonempty line).
+    let mut last_nonempty_idx: Option<usize> = None;
+    for (i, l) in lines.iter().enumerate().rev() {
+        if !l.trim().is_empty() {
+            last_nonempty_idx = Some(i);
+            break;
+        }
+    }
+
+    let mut closed = false;
+    if let Some(idx) = last_nonempty_idx {
+        let line = lines[idx];
+        let line_no_nl = line.strip_suffix('\n').unwrap_or(line);
+        if is_custom_closing_tag(line_no_nl, tag, case_insensitive) {
+            closed = true;
+            lines.remove(idx);
+        }
+    }
+
+    (closed, lines.concat())
+}
+
+impl BlockAnalyzer for TaggedBlockAnalyzer {
+    type Meta = TaggedBlockMeta;
+
+    fn analyze_block(&mut self, block: &Block) -> Option<Self::Meta> {
+        // Only consider blocks whose first line looks like an opening custom tag.
+        let first_line = block.raw.split('\n').next().unwrap_or(&block.raw);
+        let (tag, attrs) = parse_custom_opening_tag(first_line, self.case_insensitive)?;
+
+        if let Some(allowed) = &self.allowed_tags {
+            if !allowed.iter().any(|t| {
+                if self.case_insensitive {
+                    t.to_ascii_lowercase() == tag
+                } else {
+                    t == &tag
+                }
+            }) {
+                return None;
+            }
+        }
+
+        let (closed, content) = split_tag_block_content(&block.raw, &tag, self.case_insensitive);
+        Some(TaggedBlockMeta {
+            tag,
+            attributes: attrs,
+            closed,
+            content,
+        })
     }
 }
