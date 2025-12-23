@@ -83,6 +83,10 @@ The following scenarios must be covered by unit tests (ported conceptually from 
   - streaming code fence (9 steps)
 - Streamdown benchmark parity for mixed content:
   - realistic AI response
+- Streamdown benchmark parity for basic parsing:
+  - single block
+  - multiple blocks (10)
+  - many blocks (100)
 - List + emphasis interaction edge cases (avoid mis-termination)
 - Newline normalization:
   - CRLF split across chunks (`"\r"` then `"\n"`) must become a single `\n`
