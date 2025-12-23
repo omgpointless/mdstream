@@ -116,6 +116,8 @@ Some Markdown constructs are inherently document-scoped:
 
 The default can prioritize streaming stability (SingleBlock for footnotes) while still allowing advanced consumers to opt into invalidation.
 
+Today, invalidation is implemented for reference-style link definitions. Footnote invalidation is planned post-MVP.
+
 ## Invariants
 
 - `committed` blocks are append-only, stable, and never re-emitted with changed text.

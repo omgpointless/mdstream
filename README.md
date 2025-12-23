@@ -42,4 +42,5 @@ Initial MVP implementation is in progress:
 - `MdStream` core state machine (blocks: committed + pending)
 - Pending terminator (Streamdown/remend-inspired)
 - Streaming boundary tests (Streamdown/Incremark-inspired)
+- Reference-style link definitions invalidation (opt-in, for adapters)
 - Optional `pulldown-cmark` adapter via the `pulldown` feature

@@ -9,6 +9,7 @@ This roadmap is intentionally practical: it prioritizes streaming stability and 
 - Pending termination (remend-like)
 - Minimal configuration options
 - Unit tests covering streaming edge cases
+- Reference-style link definitions invalidation (opt-in mode)
 - Optional fenced-JSON repair via `jsonrepair` (feature-gated, opt-in)
 - Optional `pulldown-cmark` adapter (feature-gated)
 
@@ -20,8 +21,6 @@ This roadmap is intentionally practical: it prioritizes streaming stability and 
 
 ## v0.3 (Cross-block semantics)
 
-- Reference-style link definition tracking:
-  - emit `invalidated` block IDs for adapters (opt-in mode)
 - Footnote mode improvements:
   - default remains stability-first
   - optional invalidation-based strategy for advanced consumers

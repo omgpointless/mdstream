@@ -77,4 +77,4 @@ The following scenarios must be covered by unit tests (ported conceptually from 
 
 - Full CommonMark conformance test suite
 - Arbitrary plugin ecosystems beyond the initial extension points (see `docs/EXTENSIONS.md`)
-- Automatic re-parse/invalidations for cross-block semantics (post-MVP)
+- Advanced cross-block semantics invalidation beyond reference-style link definitions (post-MVP)

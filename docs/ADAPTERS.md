@@ -28,6 +28,8 @@ Two possible behaviors:
 1. **Stability-first (default)**: do not re-parse earlier blocks; interpretation may be delayed.
 2. **Invalidate mode (opt-in)**: when a definition arrives, `mdstream` emits `invalidated` IDs; adapter re-parses those blocks and updates caches.
 
+The `PulldownAdapter` consumes `Update.invalidated` and re-parses invalidated blocks. For reference-style link definitions, it prepends the currently-known `[...] : ...` definition lines before parsing blocks so `pulldown-cmark` can resolve shortcut references.
+
 ## Other adapters (future)
 
 - `markdown-it` style token streams are out-of-scope for Rust, but a similar strategy applies.
