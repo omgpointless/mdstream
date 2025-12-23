@@ -85,6 +85,9 @@ These constructs are document-scoped and can force either:
 
 The chosen default should prioritize streaming stability.
 
+`mdstream` may emit `Update { reset: true, .. }` when entering SingleBlock footnote mode mid-stream so
+consumers can drop cached blocks and rebuild (Streamdown parity behavior).
+
 ## Non-standard and ecosystem behaviors
 
 ### Incomplete link placeholder

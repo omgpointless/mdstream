@@ -118,6 +118,15 @@ The default can prioritize streaming stability (SingleBlock for footnotes) while
 
 Today, invalidation is implemented for reference-style link definitions. Footnote invalidation is planned post-MVP.
 
+### Footnote definition boundary rules
+
+When not in SingleBlock mode, `mdstream` tracks footnote definitions as their own block kind (`FootnoteDefinition`).
+For streaming stability (and to match Incremark-style incremental boundaries), the block ends when:
+
+- a blank line is followed by a non-indented line
+- a non-indented, non-empty line arrives (no blank line required)
+- a new footnote definition starts (`[^id]:`)
+
 ## Reset semantics
 
 Some transitions cannot be expressed as "append-only committed blocks" without breaking Streamdown parity.

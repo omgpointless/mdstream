@@ -52,6 +52,7 @@ Remend-like termination for incomplete syntax near the tail (pending only):
 
 - Once a block is emitted in `committed`, its `raw` text never changes.
 - Only the `pending` block may change between ticks.
+- Some scope-driven transitions require a rebuild (e.g. SingleBlock footnotes): `append()` may return `Update { reset: true, .. }`.
 
 ### Edge-case tests to include (MVP test list)
 
