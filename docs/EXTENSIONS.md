@@ -40,6 +40,9 @@ Status: implemented (MVP-level).
 
 - `PendingTransformer` trait
 - `MdStream::push_pending_transformer(...)` and `MdStream::with_pending_transformer(...)`
+- Built-in transformers for Streamdown-compatible behavior:
+  - `IncompleteLinkPlaceholderTransformer`
+  - `IncompleteImageDropTransformer`
 
 Minimal example:
 

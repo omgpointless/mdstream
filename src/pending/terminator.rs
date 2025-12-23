@@ -243,27 +243,45 @@ fn find_matching_close_bracket(text: &str, open_index: usize) -> Option<usize> {
     None
 }
 
-fn complete_incomplete_link_or_image(text: &str, incomplete_url: &str) -> Option<String> {
-    // 1) incomplete URL: find last occurrence of "](" with no ")" after it
-    if let Some(idx) = text.rfind("](") {
-        if !is_inside_code_block(text, idx) {
-            let after = &text[idx + 2..];
-            if !after.contains(')') {
-                if let Some(open_bracket) = find_matching_open_bracket(text, idx) {
-                    if is_inside_code_block(text, open_bracket) {
-                        return None;
-                    }
-                    let is_image = open_bracket > 0 && text.as_bytes()[open_bracket - 1] == b'!';
-                    let start = if is_image { open_bracket - 1 } else { open_bracket };
-                    let before = &text[..start];
-                    if is_image {
-                        return Some(before.to_string());
-                    }
-                    let link_text = &text[open_bracket + 1..idx];
-                    return Some(format!("{before}[{link_text}]({incomplete_url})"));
-                }
-            }
+pub(crate) fn fix_incomplete_link_or_image(
+    text: &str,
+    incomplete_url: &str,
+    links_enabled: bool,
+    images_enabled: bool,
+) -> Option<String> {
+    // 1) incomplete URL: scan for the last eligible occurrence of "](" with no ")" after it.
+    //
+    // We cannot just take `rfind("](")` because callers may want to process only links or only images.
+    let mut search = text.len();
+    while let Some(idx) = text[..search].rfind("](") {
+        search = idx;
+        if is_inside_code_block(text, idx) {
+            continue;
         }
+        let after = &text[idx + 2..];
+        if after.contains(')') {
+            continue;
+        }
+        let Some(open_bracket) = find_matching_open_bracket(text, idx) else {
+            continue;
+        };
+        if is_inside_code_block(text, open_bracket) {
+            continue;
+        }
+        let is_image = open_bracket > 0 && text.as_bytes()[open_bracket - 1] == b'!';
+        if is_image && !images_enabled {
+            continue;
+        }
+        if !is_image && !links_enabled {
+            continue;
+        }
+        let start = if is_image { open_bracket - 1 } else { open_bracket };
+        let before = &text[..start];
+        if is_image {
+            return Some(before.to_string());
+        }
+        let link_text = &text[open_bracket + 1..idx];
+        return Some(format!("{before}[{link_text}]({incomplete_url})"));
     }
 
     // 2) incomplete link text: search backwards for '[' without a matching closing ']'
@@ -274,6 +292,12 @@ fn complete_incomplete_link_or_image(text: &str, incomplete_url: &str) -> Option
         if bytes[i] == b'[' && !is_inside_code_block(text, i) {
             let is_image = i > 0 && bytes[i - 1] == b'!';
             let open_index = if is_image { i - 1 } else { i };
+            if is_image && !images_enabled {
+                continue;
+            }
+            if !is_image && !links_enabled {
+                continue;
+            }
 
             let after_open = &text[i + 1..];
             if !after_open.contains(']') {
@@ -923,7 +947,9 @@ pub fn terminate_markdown(text: &str, opts: &TerminatorOptions) -> String {
     }
 
     if opts.links || opts.images {
-        if let Some(processed) = complete_incomplete_link_or_image(&tail, &opts.incomplete_link_url) {
+        if let Some(processed) =
+            fix_incomplete_link_or_image(&tail, &opts.incomplete_link_url, opts.links, opts.images)
+        {
             if processed.ends_with(&format!("]({})", opts.incomplete_link_url)) {
                 let mut out = String::with_capacity(prefix.len() + processed.len());
                 out.push_str(prefix);
