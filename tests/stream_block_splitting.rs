@@ -185,6 +185,24 @@ fn treats_html_comments_as_html_blocks() {
 }
 
 #[test]
+fn treats_single_line_html_comment_as_html_block() {
+    let mut s = MdStream::new(Options::default());
+    let u = s.append("<!-- hello -->\nAfter");
+    assert!(u.committed.iter().any(|b| b.raw == "<!-- hello -->\n"));
+    assert_eq!(u.pending.as_ref().unwrap().raw, "After");
+}
+
+#[test]
+fn html_block_with_multiple_tags_on_one_line_is_a_single_block() {
+    let mut s = MdStream::new(Options::default());
+    let u = s.append("<div><span>hi</span></div>\nAfter");
+    assert!(u.committed.iter().any(|b| {
+        b.kind == mdstream::BlockKind::HtmlBlock && b.raw == "<div><span>hi</span></div>\n"
+    }));
+    assert_eq!(u.pending.as_ref().unwrap().raw, "After");
+}
+
+#[test]
 fn does_not_treat_autolink_as_html_block() {
     let mut s = MdStream::new(Options::default());
     let u = s.append("<https://example.com>\n\nAfter");
