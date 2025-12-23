@@ -21,6 +21,7 @@ You probably **don’t** need `mdstream` if you only parse static Markdown once,
 ## API at a glance
 
 - `MdStream`: streaming block splitter (`append` / `finalize`) that produces `Update`.
+- `MdStream::snapshot_blocks(&mut self)`: take a best-effort snapshot (may run stateful transformers).
 - `Update`: `committed + pending` plus signals like `reset` and `invalidated`.
 - `Block`: carries `id`, `kind`, `raw`, and optional `display` (pending-only).
 - `DocumentState`: a UI-friendly container to apply `Update` safely (recommended).
@@ -49,6 +50,8 @@ You probably **don’t** need `mdstream` if you only parse static Markdown once,
 - A **pending pipeline** can optionally produce a `display` view for the pending block:
   - Markdown terminator (remend-like) for incomplete constructs near the tail.
   - Custom transforms via `PendingTransformer` (eg placeholders, sanitizers).
+    - `PendingTransformer` is stateful: `transform(&mut self, ...)` and `reset(&mut self)`.
+    - Consequently, `MdStream::snapshot_blocks` requires `&mut self`.
 
 ## Installation
 
@@ -96,6 +99,7 @@ If you prefer to manage your own `(Vec<Block>, Option<Block>)`, you can apply up
 ```sh
 cargo run --example minimal
 cargo run --example footnotes_reset
+cargo run --example stateful_transformer
 cargo run --example tui_like
 cargo run --features pulldown --example pulldown_incremental
 ```
