@@ -55,17 +55,72 @@ fn is_heading(line: &str) -> bool {
     trimmed.starts_with('#') && trimmed[1..].starts_with(|c: char| c == ' ' || c == '\t' || c == '#')
 }
 
-fn is_thematic_break(line: &str) -> bool {
-    let s = line.trim();
-    if s.len() < 3 {
-        return false;
+fn thematic_break_char(line: &str) -> Option<char> {
+    // CommonMark-like thematic break:
+    // - up to 3 leading spaces
+    // - one of '-', '*', '_' repeated >= 3
+    // - spaces/tabs may appear between markers
+    // - no other characters
+    let mut s = line;
+    let mut spaces = 0usize;
+    while spaces < 3 && s.starts_with(' ') {
+        s = &s[1..];
+        spaces += 1;
     }
-    let mut chars = s.chars();
-    let first = chars.next().unwrap();
+    let s = s.trim_end_matches(|c| c == ' ' || c == '\t');
+    let mut it = s.chars();
+    let first = it.next()?;
     if first != '-' && first != '*' && first != '_' {
-        return false;
+        return None;
     }
-    chars.all(|c| c == first)
+    let mut count = 1usize;
+    for c in it {
+        if c == first {
+            count += 1;
+            continue;
+        }
+        if c == ' ' || c == '\t' {
+            continue;
+        }
+        return None;
+    }
+    if count >= 3 { Some(first) } else { None }
+}
+
+fn is_thematic_break(line: &str) -> bool {
+    thematic_break_char(line).is_some()
+}
+
+fn setext_underline_char(line: &str) -> Option<char> {
+    // Best-effort setext underline:
+    // - up to 3 leading spaces
+    // - '=' or '-' repeated >= 2
+    // - spaces/tabs may appear between markers
+    // - no other characters
+    let mut s = line;
+    let mut spaces = 0usize;
+    while spaces < 3 && s.starts_with(' ') {
+        s = &s[1..];
+        spaces += 1;
+    }
+    let s = s.trim_end_matches(|c| c == ' ' || c == '\t');
+    let mut it = s.chars();
+    let first = it.next()?;
+    if first != '=' && first != '-' {
+        return None;
+    }
+    let mut count = 1usize;
+    for c in it {
+        if c == first {
+            count += 1;
+            continue;
+        }
+        if c == ' ' || c == '\t' {
+            continue;
+        }
+        return None;
+    }
+    if count >= 2 { Some(first) } else { None }
 }
 
 fn fence_start(line: &str) -> Option<(char, usize)> {
@@ -898,6 +953,16 @@ impl MdStream {
             return true;
         }
 
+        // Setext heading underline is part of the current paragraph block, not a new block boundary.
+        if matches!(self.current_mode, BlockMode::Paragraph | BlockMode::Unknown) {
+            if setext_underline_char(curr).is_some()
+                && !is_empty_line(prev)
+                && self.current_block_start_line + 1 == curr_line_index
+            {
+                return false;
+            }
+        }
+
         // Certain block starters can interrupt paragraphs/lists/quotes.
         if is_heading(curr) || is_thematic_break(curr) {
             return true;
@@ -973,6 +1038,18 @@ impl MdStream {
                 }
             }
             BlockMode::Paragraph => {
+                // Upgrade to setext heading if underline appears right after a single paragraph line.
+                if setext_underline_char(line).is_some()
+                    && self.current_block_start_line + 1 == line_index
+                    && line_index > 0
+                {
+                    let prev = self.lines[line_index - 1].as_str(&self.buffer);
+                    if !is_empty_line(prev) {
+                        self.current_mode = BlockMode::Heading;
+                        self.commit_block(line_index, update);
+                        return;
+                    }
+                }
                 // Upgrade to table mode if delimiter row appears.
                 if self.is_table_delimiter(line) && line_index > 0 {
                     let prev = self.lines[line_index - 1].as_str(&self.buffer);

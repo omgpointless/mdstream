@@ -12,7 +12,7 @@ This document defines the MVP scope and acceptance criteria for `mdstream`.
 
 ### Block boundary detection (MUST)
 
-- Headings (`#` ATX)
+- Headings (ATX `#` and setext `===` / `---`)
 - Paragraph boundaries via blank lines
 - Thematic breaks (`---`, `***`, `___`)
 - Fenced code blocks (``` / ~~~)
