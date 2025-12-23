@@ -72,6 +72,9 @@ The following scenarios must be covered by unit tests (ported conceptually from 
   - simple multi-line HTML
   - nested HTML
   - multiple HTML blocks with markdown between
+- Streamdown benchmark parity for tables:
+  - simple table
+  - large table (100 rows)
 - List + emphasis interaction edge cases (avoid mis-termination)
 - Newline normalization:
   - CRLF split across chunks (`"\r"` then `"\n"`) must become a single `\n`

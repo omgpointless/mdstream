@@ -50,6 +50,41 @@ fn table_after_paragraph_is_separate_block() {
 }
 
 #[test]
+fn splits_streamdown_benchmark_simple_table() {
+    let mut s = MdStream::new(Options::default());
+    let input = "| Header 1 | Header 2 |\n|----------|----------|\n| Cell 1   | Cell 2   |\n| Cell 3   | Cell 4   |\n\nAfter\n";
+    let u = s.append(input);
+    assert!(u.committed.iter().any(|b| {
+        b.kind == mdstream::BlockKind::Table
+            && b.raw.contains("| Header 1 | Header 2 |\n|----------|----------|\n")
+            && b.raw.contains("| Cell 3   | Cell 4   |\n")
+    }));
+    assert_eq!(u.pending.as_ref().unwrap().raw, "After\n");
+}
+
+#[test]
+fn splits_streamdown_benchmark_large_table() {
+    let mut s = MdStream::new(Options::default());
+    let mut input = String::new();
+    input.push_str("| H1 | H2 | H3 | H4 | H5 |\n");
+    input.push_str("|----|----|----|----|-------|\n");
+    for i in 0..100 {
+        input.push_str(&format!(
+            "| C{i}1 | C{i}2 | C{i}3 | C{i}4 | C{i}5 |\n"
+        ));
+    }
+    input.push_str("\nAfter\n");
+
+    let u = s.append(&input);
+    assert!(u.committed.iter().any(|b| {
+        b.kind == mdstream::BlockKind::Table
+            && b.raw.contains("| H1 | H2 | H3 | H4 | H5 |\n")
+            && b.raw.contains("| C991 | C992 | C993 | C994 | C995 |\n")
+    }));
+    assert_eq!(u.pending.as_ref().unwrap().raw, "After\n");
+}
+
+#[test]
 fn commits_html_block_until_blank_line() {
     let mut s = MdStream::new(Options::default());
     let u1 = s.append("<div>\nhello\n</div>\n");
