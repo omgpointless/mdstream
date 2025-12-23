@@ -8,6 +8,10 @@ This roadmap is intentionally practical: it prioritizes streaming stability and 
 - Stable boundary detection (core block-level constructs)
 - Pending termination (remend-like)
 - Minimal configuration options
+- MVP extension points:
+  - `BoundaryPlugin` (custom containers/directives)
+  - `PendingTransformer`
+  - `BlockAnalyzer`
 - Unit tests covering streaming edge cases
 - Regression tests ported from Streamdown benchmarks (incrementally)
 - Reference-style link definitions invalidation (opt-in mode)
@@ -26,8 +30,6 @@ This roadmap is intentionally practical: it prioritizes streaming stability and 
   - default remains stability-first
   - optional invalidation-based strategy for advanced consumers
 
-## v0.4+ (Extensions)
+## v0.4+ (Performance)
 
-- Extension points for custom containers / directives
-- More built-in analyzers for code fence info strings (mermaid, json, etc.)
 - Performance benchmarks and regression suite

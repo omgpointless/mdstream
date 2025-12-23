@@ -2,7 +2,7 @@
 
 This document describes how consumers can extend `mdstream` to support custom streaming behaviors and non-standard Markdown constructs.
 
-## Extension Points (proposed)
+## Extension Points
 
 ### 1) BoundaryPlugin
 
@@ -18,6 +18,23 @@ Guidelines:
 
 - must be conservative: avoid committing too early
 - must not mutate committed text
+
+Status: implemented (MVP-level).
+
+`mdstream` provides:
+
+- `BoundaryPlugin` trait
+- `MdStream::push_boundary_plugin(...)` and `MdStream::with_boundary_plugin(...)`
+- `FenceBoundaryPlugin` as a small reference implementation (e.g. `:::warning ... :::`)
+
+Minimal example:
+
+```rust
+use mdstream::{FenceBoundaryPlugin, MdStream, Options};
+
+let mut s = MdStream::new(Options::default());
+s.push_boundary_plugin(FenceBoundaryPlugin::triple_colon());
+```
 
 ### 2) PendingTransformer
 

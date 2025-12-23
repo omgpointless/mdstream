@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::boundary::{BoundaryPlugin, BoundaryUpdate};
 use crate::options::{FootnotesMode, Options, ReferenceDefinitionsMode};
 use crate::pending::terminate_markdown;
 use crate::transform::{PendingTransformInput, PendingTransformer};
@@ -36,6 +37,10 @@ enum BlockMode {
         fence_len: usize,
         info: Option<String>,
     },
+    CustomBoundary {
+        plugin_index: usize,
+        started: bool,
+    },
     List,
     BlockQuote,
     HtmlBlock {
@@ -43,7 +48,9 @@ enum BlockMode {
         in_comment: bool,
     },
     Table,
-    MathBlock { open_count: usize },
+    MathBlock {
+        open_count: usize,
+    },
     FootnoteDefinition,
 }
 
@@ -53,7 +60,8 @@ fn is_empty_line(line: &str) -> bool {
 
 fn is_heading(line: &str) -> bool {
     let trimmed = line.trim_start();
-    trimmed.starts_with('#') && trimmed[1..].starts_with(|c: char| c == ' ' || c == '\t' || c == '#')
+    trimmed.starts_with('#')
+        && trimmed[1..].starts_with(|c: char| c == ' ' || c == '\t' || c == '#')
 }
 
 fn thematic_break_char(line: &str) -> Option<char> {
@@ -181,7 +189,8 @@ fn is_list_item_start(line: &str) -> bool {
             if i == 0 || i + 1 >= bytes.len() {
                 return false;
             }
-            (bytes[i] == b'.' || bytes[i] == b')') && (bytes[i + 1] == b' ' || bytes[i + 1] == b'\t')
+            (bytes[i] == b'.' || bytes[i] == b')')
+                && (bytes[i + 1] == b' ' || bytes[i + 1] == b'\t')
         }
         _ => false,
     }
@@ -299,7 +308,7 @@ fn parse_tag_at(s: &str, lt_index: usize) -> Option<(HtmlTag, &str)> {
     let name = &s[name_start..i];
     // Must be followed by whitespace, '>', or '/' to be tag-like.
     let next = bytes.get(i).copied().unwrap_or(b'\0');
-    if !(next == b' ' || next == b'\t' || next == b'>' || next == b'/' ) {
+    if !(next == b' ' || next == b'\t' || next == b'>' || next == b'/') {
         return None;
     }
     // Find end of tag '>' on this line segment.
@@ -309,7 +318,12 @@ fn parse_tag_at(s: &str, lt_index: usize) -> Option<(HtmlTag, &str)> {
     let close = i + close_rel;
 
     if is_closing {
-        return Some((HtmlTag::Closing { name: name.to_ascii_lowercase() }, &s[close + 1..]));
+        return Some((
+            HtmlTag::Closing {
+                name: name.to_ascii_lowercase(),
+            },
+            &s[close + 1..],
+        ));
     }
 
     // Determine self-closing by checking '/' before '>' (ignoring trailing whitespace).
@@ -317,7 +331,8 @@ fn parse_tag_at(s: &str, lt_index: usize) -> Option<(HtmlTag, &str)> {
     while j > i && matches!(bytes[j - 1], b' ' | b'\t') {
         j -= 1;
     }
-    let self_closing = (j > i && bytes[j - 1] == b'/') || is_void_html_tag(&name.to_ascii_lowercase());
+    let self_closing =
+        (j > i && bytes[j - 1] == b'/') || is_void_html_tag(&name.to_ascii_lowercase());
     Some((
         HtmlTag::Opening {
             name: name.to_ascii_lowercase(),
@@ -437,11 +452,7 @@ fn normalize_reference_label(label: &str) -> Option<String> {
             out.push(lc);
         }
     }
-    if out.is_empty() {
-        None
-    } else {
-        Some(out)
-    }
+    if out.is_empty() { None } else { Some(out) }
 }
 
 fn extract_reference_usages(text: &str) -> HashSet<String> {
@@ -492,7 +503,11 @@ fn extract_reference_usages(text: &str) -> HashSet<String> {
             };
             let close2 = start2 + close2_rel;
             let label2 = &text[start2..close2];
-            let chosen = if label2.trim().is_empty() { label1 } else { label2 };
+            let chosen = if label2.trim().is_empty() {
+                label1
+            } else {
+                label2
+            };
             if let Some(norm) = normalize_reference_label(chosen) {
                 out.insert(norm);
             }
@@ -585,6 +600,8 @@ pub struct MdStream {
 
     pending_display_cache: Option<String>,
     pending_transformers: Vec<Box<dyn PendingTransformer>>,
+    boundary_plugins: Vec<Box<dyn BoundaryPlugin>>,
+    active_boundary_plugin: Option<usize>,
     footnotes_detected: bool,
     footnote_scan_tail: String,
     pending_cr: bool,
@@ -602,8 +619,13 @@ impl std::fmt::Debug for MdStream {
             .field("current_block_start_line", &self.current_block_start_line)
             .field("current_block_id", &self.current_block_id)
             .field("next_block_id", &self.next_block_id)
-            .field("pending_display_cache", &self.pending_display_cache.is_some())
+            .field(
+                "pending_display_cache",
+                &self.pending_display_cache.is_some(),
+            )
             .field("pending_transformers_len", &self.pending_transformers.len())
+            .field("boundary_plugins_len", &self.boundary_plugins.len())
+            .field("active_boundary_plugin", &self.active_boundary_plugin)
             .field("footnotes_detected", &self.footnotes_detected)
             .finish()
     }
@@ -630,6 +652,8 @@ impl MdStream {
             current_mode: BlockMode::Unknown,
             pending_display_cache: None,
             pending_transformers: Vec::new(),
+            boundary_plugins: Vec::new(),
+            active_boundary_plugin: None,
             footnotes_detected: false,
             footnote_scan_tail: String::new(),
             pending_cr: false,
@@ -671,6 +695,22 @@ impl MdStream {
         T: PendingTransformer + 'static,
     {
         self.push_pending_transformer(transformer);
+        self
+    }
+
+    pub fn push_boundary_plugin<T>(&mut self, plugin: T)
+    where
+        T: BoundaryPlugin + 'static,
+    {
+        self.boundary_plugins.push(Box::new(plugin));
+        self.pending_display_cache = None;
+    }
+
+    pub fn with_boundary_plugin<T>(mut self, plugin: T) -> Self
+    where
+        T: BoundaryPlugin + 'static,
+    {
+        self.push_boundary_plugin(plugin);
         self
     }
 
@@ -770,7 +810,17 @@ impl MdStream {
         }
     }
 
-    fn start_mode_for_line(line: &str) -> BlockMode {
+    fn start_mode_for_line(&self, line: &str) -> BlockMode {
+        if let Some(idx) = self
+            .boundary_plugins
+            .iter()
+            .position(|p| p.matches_start(line))
+        {
+            return BlockMode::CustomBoundary {
+                plugin_index: idx,
+                started: false,
+            };
+        }
         if is_heading(line) {
             return BlockMode::Heading;
         }
@@ -823,6 +873,7 @@ impl MdStream {
             BlockMode::Heading => BlockKind::Heading,
             BlockMode::ThematicBreak => BlockKind::ThematicBreak,
             BlockMode::CodeFence { .. } => BlockKind::CodeFence,
+            BlockMode::CustomBoundary { .. } => BlockKind::Unknown,
             BlockMode::List => BlockKind::List,
             BlockMode::BlockQuote => BlockKind::BlockQuote,
             BlockMode::HtmlBlock { .. } => BlockKind::HtmlBlock,
@@ -853,6 +904,7 @@ impl MdStream {
             self.current_block_id = BlockId(self.next_block_id);
             self.next_block_id += 1;
             self.current_mode = BlockMode::Unknown;
+            self.active_boundary_plugin = None;
             self.pending_display_cache = None;
             return;
         }
@@ -869,6 +921,7 @@ impl MdStream {
         self.current_block_id = BlockId(self.next_block_id);
         self.next_block_id += 1;
         self.current_mode = BlockMode::Unknown;
+        self.active_boundary_plugin = None;
         self.pending_display_cache = None;
     }
 
@@ -942,7 +995,7 @@ impl MdStream {
         if line_index == self.current_block_start_line {
             // Defensive: the first line of a block is the single source of truth for the block mode.
             // This avoids stale-mode edge cases where `current_mode` is not `Unknown` at a new start.
-            self.current_mode = Self::start_mode_for_line(self.line_str(line_index));
+            self.current_mode = self.start_mode_for_line(self.line_str(line_index));
             self.maybe_commit_single_line(line_index, update);
             // Even on the first line, some modes need to update internal state (e.g. HTML tag stack).
             self.update_mode_with_line(line_index, update);
@@ -954,7 +1007,7 @@ impl MdStream {
             let curr = self.line_str(line_index);
             let boundary = self.is_new_block_boundary(prev, curr, line_index);
             let next_mode = if boundary {
-                Some(Self::start_mode_for_line(curr))
+                Some(self.start_mode_for_line(curr))
             } else {
                 None
             };
@@ -1002,13 +1055,16 @@ impl MdStream {
 
         if boundary {
             self.commit_block(last - 1, update);
-            self.current_mode = Self::start_mode_for_line(self.line_str(last));
+            self.current_mode = self.start_mode_for_line(self.line_str(last));
         }
     }
 
     fn is_new_block_boundary(&self, prev: &str, curr: &str, curr_line_index: usize) -> bool {
         // Never split inside fenced code blocks.
         if let BlockMode::CodeFence { .. } = self.current_mode {
+            return false;
+        }
+        if let BlockMode::CustomBoundary { .. } = self.current_mode {
             return false;
         }
         if let BlockMode::MathBlock { open_count } = self.current_mode {
@@ -1059,14 +1115,22 @@ impl MdStream {
         if fence_start(curr).is_some() {
             return true;
         }
+        if self.boundary_plugins.iter().any(|p| p.matches_start(curr)) {
+            return true;
+        }
         if is_footnote_definition_start(curr) {
             return true;
         }
-        if is_blockquote_start(curr) && !is_blockquote_start(prev) && !matches!(self.current_mode, BlockMode::BlockQuote)
+        if is_blockquote_start(curr)
+            && !is_blockquote_start(prev)
+            && !matches!(self.current_mode, BlockMode::BlockQuote)
         {
             return true;
         }
-        if is_list_item_start(curr) && !is_list_item_start(prev) && !matches!(self.current_mode, BlockMode::List) {
+        if is_list_item_start(curr)
+            && !is_list_item_start(prev)
+            && !matches!(self.current_mode, BlockMode::List)
+        {
             return true;
         }
 
@@ -1109,7 +1173,7 @@ impl MdStream {
         let line = &self.buffer[start..end];
         match &mut self.current_mode {
             BlockMode::Unknown => {
-                self.current_mode = Self::start_mode_for_line(line);
+                self.current_mode = self.start_mode_for_line(line);
                 self.maybe_commit_single_line(line_index, update);
             }
             BlockMode::CodeFence {
@@ -1118,6 +1182,24 @@ impl MdStream {
                 ..
             } => {
                 if fence_end(line, *fence_char, *fence_len) {
+                    self.commit_block(line_index, update);
+                }
+            }
+            BlockMode::CustomBoundary {
+                plugin_index,
+                started,
+            } => {
+                let idx = *plugin_index;
+                if idx >= self.boundary_plugins.len() {
+                    return;
+                }
+                self.active_boundary_plugin = Some(idx);
+                if !*started {
+                    self.boundary_plugins[idx].start(line);
+                    *started = true;
+                }
+                if self.boundary_plugins[idx].update(line) == BoundaryUpdate::Close {
+                    self.active_boundary_plugin = None;
                     self.commit_block(line_index, update);
                 }
             }
@@ -1175,7 +1257,11 @@ impl MdStream {
                 return None;
             }
             let kind = BlockKind::Unknown;
-            let display = self.transform_pending_display(kind, &raw, terminate_markdown(&raw, &self.opts.terminator));
+            let display = self.transform_pending_display(
+                kind,
+                &raw,
+                terminate_markdown(&raw, &self.opts.terminator),
+            );
             return Some(Block {
                 id: BlockId(1),
                 status: BlockStatus::Pending,
@@ -1255,7 +1341,12 @@ impl MdStream {
         p
     }
 
-    fn maybe_repair_fenced_json_display(&self, raw: &str, display: String, mode: &BlockMode) -> String {
+    fn maybe_repair_fenced_json_display(
+        &self,
+        raw: &str,
+        display: String,
+        mode: &BlockMode,
+    ) -> String {
         if !self.opts.json_repair_in_fences {
             return display;
         }
@@ -1265,8 +1356,15 @@ impl MdStream {
         let Some(info) = info.as_deref() else {
             return display;
         };
-        let lang = info.split_whitespace().next().unwrap_or("").to_ascii_lowercase();
-        if !matches!(lang.as_str(), "json" | "jsonc" | "json5" | "jsonl" | "jsonp") {
+        let lang = info
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if !matches!(
+            lang.as_str(),
+            "json" | "jsonc" | "json5" | "jsonl" | "jsonp"
+        ) {
             return display;
         }
 
@@ -1277,10 +1375,8 @@ impl MdStream {
                 return display;
             };
             let mut body = &raw[first_nl + 1..];
-            if let Some(close_line_start) = body
-                .match_indices('\n')
-                .map(|(i, _)| i + 1)
-                .find(|&i| {
+            if let Some(close_line_start) =
+                body.match_indices('\n').map(|(i, _)| i + 1).find(|&i| {
                     let line = &body[i..body[i..].find('\n').map(|r| i + r).unwrap_or(body.len())];
                     fence_start(line).is_some()
                 })
@@ -1446,6 +1542,10 @@ impl MdStream {
         for t in &self.pending_transformers {
             t.reset();
         }
+        for p in self.boundary_plugins.iter_mut() {
+            p.reset();
+        }
+        self.active_boundary_plugin = None;
         self.footnotes_detected = false;
         self.footnote_scan_tail.clear();
         self.pending_cr = false;
