@@ -28,6 +28,48 @@ It targets LLM token-by-token / chunk-by-chunk output and helps downstream UIs (
   - Markdown terminator (remend-like) for incomplete constructs near the tail.
   - Custom transforms via `PendingTransformer` (eg placeholders, sanitizers).
 
+## Optional: Reference Definitions Invalidation (Best-effort)
+
+Markdown reference-style links/images can be defined *after* they are used:
+
+- usage: `See [docs][ref].` or `See [ref].`
+- definition (often later): `[ref]: https://example.com`
+
+In streaming UIs that parse/render **each committed block independently**, late-arriving reference
+definitions can require re-parsing earlier blocks so they turn into real links.
+
+`mdstream` provides an **opt-in** invalidation signal for this:
+
+- Enable: `opts.reference_definitions = ReferenceDefinitionsMode::Invalidate`
+- When a reference definition is **committed**, `Update.invalidated` contains the `BlockId`s of
+  previously committed blocks that likely used the label.
+- Consumers/adapters can re-parse only those blocks instead of re-parsing the entire document.
+
+This is intentionally **best-effort** (optimized for LLM streaming), not a full CommonMark/GFM
+reference definition implementation:
+
+- Only single-line definitions are recognized (`^[ ]{0,3}[label]: ...`), footnotes (`[^x]:`) are excluded.
+- Label matching is normalized (trim, collapse whitespace, case-insensitive).
+- Usage extraction over-approximates: false positives may cause extra invalidations; the goal is to
+  avoid missing invalidations.
+- Definitions inside fenced code blocks do not trigger invalidations.
+
+Example:
+
+```rust
+use mdstream::{MdStream, Options, ReferenceDefinitionsMode};
+
+let mut opts = Options::default();
+opts.reference_definitions = ReferenceDefinitionsMode::Invalidate;
+
+let mut s = MdStream::new(opts);
+let u1 = s.append("See [ref].\n\n");
+assert!(u1.committed.is_empty());
+
+let u2 = s.append("[ref]: https://example.com\n\nNext\n");
+assert!(u2.invalidated.contains(&mdstream::BlockId(1)));
+```
+
 ## Documentation
 
 - Architecture: `docs/ARCHITECTURE.md`
@@ -37,6 +79,8 @@ It targets LLM token-by-token / chunk-by-chunk output and helps downstream UIs (
 - Compatibility & edge cases: `docs/COMPATIBILITY.md`
 - Adapters (pulldown-cmark, etc.): `docs/ADAPTERS.md`
 - Extension points: `docs/EXTENSIONS.md`
+  - Note: End-user integration guidance is kept in this README; the `docs/` folder is primarily for
+    development notes and may be pruned for releases.
 
 ## Status
 
