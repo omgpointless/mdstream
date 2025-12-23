@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, HashMap};
 
@@ -30,6 +31,7 @@ pub struct PulldownAdapter {
     reference_definitions: BTreeMap<String, String>,
     reference_definitions_text: String,
     reference_definitions_dirty: bool,
+    parse_scratch: RefCell<String>,
 }
 
 impl PulldownAdapter {
@@ -41,6 +43,7 @@ impl PulldownAdapter {
             reference_definitions: BTreeMap::new(),
             reference_definitions_text: String::new(),
             reference_definitions_dirty: false,
+            parse_scratch: RefCell::new(String::new()),
         }
     }
 
@@ -50,6 +53,7 @@ impl PulldownAdapter {
         self.reference_definitions.clear();
         self.reference_definitions_text.clear();
         self.reference_definitions_dirty = false;
+        self.parse_scratch.borrow_mut().clear();
     }
 
     pub fn apply_update(&mut self, update: &Update) {
@@ -92,12 +96,13 @@ impl PulldownAdapter {
         if self.reference_definitions_text.is_empty() {
             return parse_events_static(raw, self.opts.pulldown);
         }
-        let mut input =
-            String::with_capacity(self.reference_definitions_text.len() + 2 + raw.len());
-        input.push_str(&self.reference_definitions_text);
-        input.push_str("\n\n");
-        input.push_str(raw);
-        parse_events_static(&input, self.opts.pulldown)
+        let mut scratch = self.parse_scratch.borrow_mut();
+        scratch.clear();
+        scratch.reserve(self.reference_definitions_text.len() + 2 + raw.len());
+        scratch.push_str(&self.reference_definitions_text);
+        scratch.push_str("\n\n");
+        scratch.push_str(raw);
+        parse_events_static(&scratch, self.opts.pulldown)
     }
 
     fn collect_reference_definitions(&mut self, raw: &str) {
