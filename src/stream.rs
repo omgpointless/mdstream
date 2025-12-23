@@ -446,13 +446,16 @@ fn extract_reference_usages(text: &str) -> HashSet<String> {
             i += 1;
             continue;
         }
-        let Some(close1_rel) = text[i + 1..].find(']') else {
+        let mut close1 = i + 1;
+        while close1 < bytes.len() && bytes[close1] != b']' {
+            close1 += 1;
+        }
+        if close1 >= bytes.len() {
             break;
-        };
-        let close1 = i + 1 + close1_rel;
+        }
         let label1 = &text[i + 1..close1];
         // Skip footnote-ish labels.
-        if label1.starts_with('^') {
+        if label1.as_bytes().first() == Some(&b'^') {
             i = close1 + 1;
             continue;
         }
@@ -474,10 +477,13 @@ fn extract_reference_usages(text: &str) -> HashSet<String> {
             if start2 >= bytes.len() {
                 break;
             }
-            let Some(close2_rel) = text[start2..].find(']') else {
+            let mut close2 = start2;
+            while close2 < bytes.len() && bytes[close2] != b']' {
+                close2 += 1;
+            }
+            if close2 >= bytes.len() {
                 break;
-            };
-            let close2 = start2 + close2_rel;
+            }
             let label2 = &text[start2..close2];
             let chosen = if label2.trim().is_empty() {
                 label1
