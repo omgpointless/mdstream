@@ -255,7 +255,8 @@ enum HtmlTag {
 }
 
 fn is_ascii_tag_name_char(b: u8) -> bool {
-    b.is_ascii_alphanumeric()
+    // Streamdown uses `<(\\w+)[\\s>]` for tag names (`\\w` includes `_`).
+    b.is_ascii_alphanumeric() || b == b'_'
 }
 
 fn is_void_html_tag(name: &str) -> bool {

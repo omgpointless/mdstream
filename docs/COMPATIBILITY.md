@@ -30,6 +30,32 @@ Baseline: `repo-ref/streamdown/packages/streamdown/lib/parse-blocks.tsx`.
 - Streaming simulation (covered: `tests/stream_streamdown_simulation.rs`)
 - Mixed content scenario (covered: `tests/stream_streamdown_mixed_content.rs`)
 
+## Known differences vs Streamdown (documented)
+
+Streamdown's block splitting uses `marked` tokenization plus a small post-merge step
+(`repo-ref/streamdown/packages/streamdown/lib/parse-blocks.tsx`). `mdstream` implements a
+streaming-first line scanner. As a result, there are some intentional differences:
+
+- HTML tag detection:
+  - Streamdown uses regexes like `/<(\\w+)[\\s>]/` and `/<\\/(\\w+)>/` (tag name = `\\w+`).
+  - `mdstream` recognizes ASCII tag names that start with a letter and continue with
+    alphanumerics/`_`, and it supports whitespace before `>` in closing tags.
+- HTML stack handling:
+  - Streamdown only pops one closing tag per `html` token and does not attempt to parse multiple tags
+    within one token.
+  - `mdstream` scans each line and maintains a best-effort stack (multiple tags per line supported).
+- HTML comments:
+  - Streamdown behavior depends on `marked` tokenization (comments may or may not be merged depending
+    on how tokens are produced).
+  - `mdstream` treats multi-line `<!-- ... -->` as a single HTML block for stability.
+- Tables/lists/blockquote nuances:
+  - Streamdown relies on `marked`'s idea of tables/lists/quotes.
+  - `mdstream` uses lightweight heuristics designed to be chunking-invariant; some non-benchmark edge
+    cases may split differently.
+
+These differences are acceptable as long as Streamdown benchmark parity tests and chunking invariance
+tests remain green.
+
 ## Streaming edge cases (must handle)
 
 ### Incomplete inline constructs
