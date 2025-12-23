@@ -27,15 +27,17 @@ Status: implemented (MVP-level).
 - `MdStream::push_boundary_plugin(...)` and `MdStream::with_boundary_plugin(...)`
 - `FenceBoundaryPlugin` as a small reference implementation (e.g. `:::warning ... :::`)
 - `TagBoundaryPlugin` as another built-in example (e.g. `<thinking> ... </thinking>`)
+- `ContainerBoundaryPlugin` for Incremark-compatible `::: name attr` containers (with nesting)
 
 Minimal example:
 
 ```rust
-use mdstream::{FenceBoundaryPlugin, MdStream, Options, TagBoundaryPlugin};
+use mdstream::{ContainerBoundaryPlugin, FenceBoundaryPlugin, MdStream, Options, TagBoundaryPlugin};
 
 let mut s = MdStream::new(Options::default());
 s.push_boundary_plugin(FenceBoundaryPlugin::triple_colon());
 s.push_boundary_plugin(TagBoundaryPlugin::thinking());
+s.push_boundary_plugin(ContainerBoundaryPlugin::default());
 ```
 
 ### 2) PendingTransformer

@@ -295,3 +295,188 @@ impl BoundaryPlugin for TagBoundaryPlugin {
         self.active = false;
     }
 }
+
+#[derive(Debug, Clone)]
+struct ContainerMatch {
+    marker_length: usize,
+    is_end: bool,
+}
+
+fn is_container_name_start(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
+}
+
+fn is_container_name_char(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_' || b == b'-'
+}
+
+/// An Incremark-compatible `:::` container plugin.
+///
+/// This mirrors Incremark's `detectContainer()` behavior:
+///
+/// - `::: name` starts a container
+/// - `:::` ends a container
+/// - longer markers like `:::::` are allowed (useful for nesting)
+/// - nesting depth is tracked; each end marker closes one level
+#[derive(Debug, Clone)]
+pub struct ContainerBoundaryPlugin {
+    pub marker: char,
+    pub min_marker_length: usize,
+    pub allowed_names: Option<Vec<String>>,
+    pub allow_attributes: bool,
+
+    base_marker_length: Option<usize>,
+    depth: usize,
+    just_started: bool,
+}
+
+impl Default for ContainerBoundaryPlugin {
+    fn default() -> Self {
+        Self::new(':', 3)
+    }
+}
+
+impl ContainerBoundaryPlugin {
+    pub fn new(marker: char, min_marker_length: usize) -> Self {
+        Self {
+            marker,
+            min_marker_length,
+            allowed_names: None,
+            allow_attributes: true,
+            base_marker_length: None,
+            depth: 0,
+            just_started: false,
+        }
+    }
+
+    fn detect_container(&self, line: &str) -> Option<ContainerMatch> {
+        // Equivalent to Incremark's:
+        // ^(\s*)(:{3,})(?:\s+(\w[\w-]*))?(?:\s+(.*))?\s*$
+        let s = line.trim_end();
+        let s = s.trim_start();
+        let bytes = s.as_bytes();
+        let marker = self.marker as u8;
+        let mut i = 0usize;
+        while i < bytes.len() && bytes[i] == marker {
+            i += 1;
+        }
+        if i < self.min_marker_length {
+            return None;
+        }
+        let marker_length = i;
+        let mut rest = s[i..].trim_end_matches(|c| c == ' ' || c == '\t');
+        if rest.is_empty() {
+            return Some(ContainerMatch {
+                marker_length,
+                is_end: true,
+            });
+        }
+
+        // Incremark requires at least one whitespace before name/attrs.
+        if !rest
+            .as_bytes()
+            .first()
+            .is_some_and(|b| b.is_ascii_whitespace())
+        {
+            return None;
+        }
+        rest = rest.trim_start_matches(|c| c == ' ' || c == '\t');
+
+        // Parse optional name.
+        let rest_bytes = rest.as_bytes();
+        let mut name_end = 0usize;
+        if rest_bytes
+            .first()
+            .is_some_and(|b| is_container_name_start(*b))
+        {
+            name_end = 1;
+            while name_end < rest_bytes.len() && is_container_name_char(rest_bytes[name_end]) {
+                name_end += 1;
+            }
+        }
+
+        let name = if name_end > 0 {
+            rest[..name_end].to_string()
+        } else {
+            String::new()
+        };
+
+        let attrs = rest[name_end..].trim();
+        let has_attrs = !attrs.is_empty();
+        if has_attrs && !self.allow_attributes {
+            return None;
+        }
+
+        let is_end = name.is_empty() && !has_attrs;
+        if !is_end {
+            if let Some(allowed) = &self.allowed_names {
+                if !allowed.is_empty() && !allowed.iter().any(|n| n == &name) {
+                    return None;
+                }
+            }
+        }
+
+        Some(ContainerMatch {
+            marker_length,
+            is_end,
+        })
+    }
+}
+
+impl BoundaryPlugin for ContainerBoundaryPlugin {
+    fn matches_start(&self, line: &str) -> bool {
+        self.detect_container(line).is_some_and(|m| !m.is_end)
+    }
+
+    fn start(&mut self, line: &str) {
+        let Some(m) = self.detect_container(line) else {
+            self.base_marker_length = None;
+            self.depth = 0;
+            self.just_started = false;
+            return;
+        };
+        if m.is_end {
+            self.base_marker_length = None;
+            self.depth = 0;
+            self.just_started = false;
+            return;
+        }
+        self.base_marker_length = Some(m.marker_length);
+        self.depth = 1;
+        self.just_started = true;
+    }
+
+    fn update(&mut self, line: &str) -> BoundaryUpdate {
+        if self.depth == 0 {
+            return BoundaryUpdate::Continue;
+        }
+        let Some(base) = self.base_marker_length else {
+            return BoundaryUpdate::Continue;
+        };
+        if self.just_started {
+            self.just_started = false;
+            return BoundaryUpdate::Continue;
+        }
+        let Some(m) = self.detect_container(line) else {
+            return BoundaryUpdate::Continue;
+        };
+        if m.is_end && m.marker_length >= base {
+            self.depth = self.depth.saturating_sub(1);
+            if self.depth == 0 {
+                self.base_marker_length = None;
+                return BoundaryUpdate::Close;
+            }
+            return BoundaryUpdate::Continue;
+        }
+        if !m.is_end {
+            self.depth += 1;
+        }
+        BoundaryUpdate::Continue
+    }
+
+    fn reset(&mut self) {
+        self.base_marker_length = None;
+        self.depth = 0;
+        self.just_started = false;
+    }
+}
