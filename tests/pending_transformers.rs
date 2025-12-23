@@ -17,3 +17,38 @@ fn pending_transformer_can_override_display() {
     assert_eq!(p2.raw, "hi there");
     assert_eq!(p2.display.as_deref(), Some("hi there<<t>>"));
 }
+
+#[test]
+fn built_in_incomplete_link_placeholder_transformer_can_be_enabled() {
+    let mut opts = Options::default();
+    // Disable built-in terminator handling so this test exercises the transformer.
+    opts.terminator.links = false;
+    opts.terminator.images = false;
+
+    let mut s = MdStream::new(opts).with_pending_transformer(
+        mdstream::IncompleteLinkPlaceholderTransformer::default(),
+    );
+
+    let u = s.append("See [docs](");
+    let p = u.pending.expect("pending");
+    assert_eq!(p.raw, "See [docs](");
+    assert_eq!(
+        p.display.as_deref(),
+        Some("See [docs](streamdown:incomplete-link)")
+    );
+}
+
+#[test]
+fn built_in_incomplete_image_drop_transformer_can_be_enabled() {
+    let mut opts = Options::default();
+    opts.terminator.links = false;
+    opts.terminator.images = false;
+
+    let mut s =
+        MdStream::new(opts).with_pending_transformer(mdstream::IncompleteImageDropTransformer::default());
+
+    let u = s.append("Before ![alt](");
+    let p = u.pending.expect("pending");
+    assert_eq!(p.raw, "Before ![alt](");
+    assert_eq!(p.display.as_deref(), Some("Before "));
+}
