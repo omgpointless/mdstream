@@ -151,3 +151,99 @@ fn latex_begin_block_missing_closing_delimiter_is_balanced_once() {
     assert!(!out.contains("$$$$"));
     assert!(out.ends_with("$$"));
 }
+
+#[test]
+fn streamdown_component_incomplete_markdown_enabled_by_default() {
+    // Streamdown: `parseIncompleteMarkdown` defaults to `true` in streaming mode.
+    let opts = TerminatorOptions::default();
+    assert_eq!(
+        terminate_markdown("Text with **incomplete bold", &opts),
+        "Text with **incomplete bold**"
+    );
+}
+
+#[test]
+fn streamdown_component_incomplete_markdown_disabled() {
+    // Streamdown: `parseIncompleteMarkdown={false}` means "do not remend".
+    let opts = TerminatorOptions {
+        setext_headings: false,
+        links: false,
+        images: false,
+        emphasis: false,
+        inline_code: false,
+        strikethrough: false,
+        katex_block: false,
+        incomplete_link_url: TerminatorOptions::default().incomplete_link_url,
+        window_bytes: TerminatorOptions::default().window_bytes,
+    };
+    assert_eq!(
+        terminate_markdown("Text with **incomplete bold", &opts),
+        "Text with **incomplete bold"
+    );
+}
+
+#[test]
+fn streamdown_cjk_friendly_emphasis_examples_are_stable() {
+    let opts = TerminatorOptions::default();
+
+    assert_eq!(
+        terminate_markdown("**（）【】「」**", &opts),
+        "**（）【】「」**"
+    );
+    assert_eq!(
+        terminate_markdown("**外側（*内側【ネスト】*）。**", &opts),
+        "**外側（*内側【ネスト】*）。**"
+    );
+    assert_eq!(
+        terminate_markdown(
+            "**太字（説明）**と*斜体【補足】*と~~削除「古い」~~。",
+            &opts
+        ),
+        "**太字（説明）**と*斜体【補足】*と~~削除「古い」~~。"
+    );
+    assert_eq!(
+        terminate_markdown("**テキスト**（説明）", &opts),
+        "**テキスト**（説明）"
+    );
+    assert_eq!(
+        terminate_markdown("**This is English（これは日本語）mixed content。**", &opts),
+        "**This is English（これは日本語）mixed content。**"
+    );
+}
+
+#[test]
+fn streamdown_cjk_friendly_incomplete_emphasis_is_completed() {
+    let opts = TerminatorOptions::default();
+    assert_eq!(
+        terminate_markdown("**未完了のテキスト（括弧付き", &opts),
+        "**未完了のテキスト（括弧付き**"
+    );
+    assert_eq!(
+        terminate_markdown("**ストリーミング", &opts),
+        "**ストリーミング**"
+    );
+}
+
+#[test]
+fn streamdown_email_addresses_are_not_modified() {
+    let opts = TerminatorOptions::default();
+    assert_eq!(
+        terminate_markdown("example@gmail.com", &opts),
+        "example@gmail.com"
+    );
+    assert_eq!(
+        terminate_markdown(
+            "Please contact me at john.doe@example.com for more info",
+            &opts
+        ),
+        "Please contact me at john.doe@example.com for more info"
+    );
+    assert_eq!(
+        terminate_markdown("Contact admin@site.com or support@site.com", &opts),
+        "Contact admin@site.com or support@site.com"
+    );
+    assert_eq!(
+        terminate_markdown("user+test@example-domain.co.uk", &opts),
+        "user+test@example-domain.co.uk"
+    );
+}
