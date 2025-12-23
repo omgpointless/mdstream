@@ -101,3 +101,23 @@ fn commits_math_block_as_single_block() {
     let u2 = s.append("$$\n\nAfter\n");
     assert!(u2.committed.iter().any(|b| b.raw.contains("$$\nx = 1\ny = 2\n$$\n")));
 }
+
+#[test]
+fn commits_math_block_with_split_delimiters_as_single_block() {
+    let mut s = MdStream::new(Options::default());
+
+    let u1 = s.append("Some text\n\n$$\n\nx^2 + y^2 = z^2\n\n");
+    assert!(u1.committed.iter().any(|b| b.raw == "Some text\n\n"));
+    assert!(u1.pending.is_some());
+    assert_eq!(
+        u1.pending.as_ref().unwrap().raw,
+        "$$\n\nx^2 + y^2 = z^2\n\n"
+    );
+
+    let u2 = s.append("$$\n\nMore text\n");
+    assert!(u2.committed.iter().any(|b| {
+        b.raw == "$$\n\nx^2 + y^2 = z^2\n\n$$\n\n"
+            || b.raw == "$$\n\nx^2 + y^2 = z^2\n\n$$\n"
+    }));
+    assert_eq!(u2.pending.as_ref().unwrap().raw, "More text\n");
+}
