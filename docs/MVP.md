@@ -91,6 +91,11 @@ The following scenarios must be covered by unit tests (ported conceptually from 
   - single code block
   - multiple code blocks
   - large code block (1000 lines)
+- Chunking invariance for list/blockquote edge cases:
+  - list items separated by blank lines
+  - multiline list items and continuations
+  - task list items (`- [x]`)
+  - blockquote lazy continuation lines
 - List + emphasis interaction edge cases (avoid mis-termination)
 - Newline normalization:
   - CRLF split across chunks (`"\r"` then `"\n"`) must become a single `\n`

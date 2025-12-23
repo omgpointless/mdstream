@@ -186,6 +186,31 @@ fn is_list_item_start(line: &str) -> bool {
     }
 }
 
+fn is_list_continuation(line: &str) -> bool {
+    // Best-effort continuation line for lists:
+    // - indented content (>=2 spaces or a tab)
+    // - or a nested list item starter
+    if is_list_item_start(line) {
+        return true;
+    }
+    let bytes = line.as_bytes();
+    if bytes.first() == Some(&b'\t') {
+        return true;
+    }
+    let mut spaces = 0usize;
+    for &b in bytes {
+        if b == b' ' {
+            spaces += 1;
+            if spaces >= 2 {
+                return true;
+            }
+            continue;
+        }
+        break;
+    }
+    false
+}
+
 fn is_footnote_definition_start(line: &str) -> bool {
     let s = line.trim_start();
     s.starts_with("[^") && s.contains("]:")
@@ -950,6 +975,14 @@ impl MdStream {
 
         // A new block can start after an empty line.
         if is_empty_line(prev) && !is_empty_line(curr) {
+            // Lists can legally contain blank lines between items and within an item's continuation.
+            if matches!(self.current_mode, BlockMode::List) && is_list_continuation(curr) {
+                return false;
+            }
+            // Blockquotes can continue after blank lines only if the marker is present.
+            if matches!(self.current_mode, BlockMode::BlockQuote) && is_blockquote_start(curr) {
+                return false;
+            }
             return true;
         }
 
@@ -973,10 +1006,11 @@ impl MdStream {
         if is_footnote_definition_start(curr) {
             return true;
         }
-        if is_blockquote_start(curr) && !is_blockquote_start(prev) {
+        if is_blockquote_start(curr) && !is_blockquote_start(prev) && !matches!(self.current_mode, BlockMode::BlockQuote)
+        {
             return true;
         }
-        if is_list_item_start(curr) && !is_list_item_start(prev) {
+        if is_list_item_start(curr) && !is_list_item_start(prev) && !matches!(self.current_mode, BlockMode::List) {
             return true;
         }
 
