@@ -804,17 +804,9 @@ impl MdStream {
         }
 
         if line_index == self.current_block_start_line {
-            let new_mode = {
-                let line = self.line_str(line_index);
-                if matches!(self.current_mode, BlockMode::Unknown) {
-                    Some(Self::start_mode_for_line(line))
-                } else {
-                    None
-                }
-            };
-            if let Some(m) = new_mode {
-                self.current_mode = m;
-            }
+            // Defensive: the first line of a block is the single source of truth for the block mode.
+            // This avoids stale-mode edge cases where `current_mode` is not `Unknown` at a new start.
+            self.current_mode = Self::start_mode_for_line(self.line_str(line_index));
             self.maybe_commit_single_line(line_index, update);
             // Even on the first line, some modes need to update internal state (e.g. HTML tag stack).
             self.update_mode_with_line(line_index, update);
