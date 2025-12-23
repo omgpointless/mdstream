@@ -4,6 +4,7 @@ use std::collections::{HashMap, HashSet};
 use crate::boundary::{BoundaryPlugin, BoundaryUpdate};
 use crate::options::{FootnotesMode, Options, ReferenceDefinitionsMode};
 use crate::pending::terminate_markdown;
+use crate::reference::{extract_reference_definition_label, normalize_reference_label};
 use crate::transform::{PendingTransformInput, PendingTransformer};
 use crate::types::{Block, BlockId, BlockKind, BlockStatus, Update};
 
@@ -428,64 +429,6 @@ fn update_html_block_state(line: &str, stack: &mut Vec<String>, in_comment: &mut
 
 fn is_footnote_continuation(line: &str) -> bool {
     line.starts_with("    ") || line.starts_with('\t')
-}
-
-fn extract_reference_definition_label(line: &str) -> Option<String> {
-    // CommonMark-ish reference definition, single line only:
-    // up to 3 leading spaces, then "[label]:"
-    //
-    // We purposely keep this lightweight and streaming-friendly; multi-line definitions
-    // can be supported later via a dedicated block mode.
-    let mut s = line;
-    let mut spaces = 0usize;
-    while spaces < 3 && s.starts_with(' ') {
-        s = &s[1..];
-        spaces += 1;
-    }
-    let bytes = s.as_bytes();
-    if bytes.len() < 4 || bytes[0] != b'[' {
-        return None;
-    }
-    let close = s.find(']')?;
-    if close == 1 {
-        return None;
-    }
-    if s.as_bytes().get(close + 1) != Some(&b':') {
-        return None;
-    }
-    let label = &s[1..close];
-    // Exclude footnote definitions like "[^1]:"
-    if label.starts_with('^') {
-        return None;
-    }
-    normalize_reference_label(label)
-}
-
-fn normalize_reference_label(label: &str) -> Option<String> {
-    let trimmed = label.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    // Keep a conservative cap similar to Streamdown's footnote patterns.
-    if trimmed.len() > 200 {
-        return None;
-    }
-    let mut out = String::with_capacity(trimmed.len());
-    let mut last_was_ws = false;
-    for ch in trimmed.chars() {
-        if ch.is_whitespace() {
-            last_was_ws = true;
-            continue;
-        }
-        if last_was_ws && !out.is_empty() {
-            out.push(' ');
-        }
-        last_was_ws = false;
-        for lc in ch.to_lowercase() {
-            out.push(lc);
-        }
-    }
-    if out.is_empty() { None } else { Some(out) }
 }
 
 fn extract_reference_usages(text: &str) -> HashSet<String> {

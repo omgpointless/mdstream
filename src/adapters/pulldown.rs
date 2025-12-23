@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::reference;
 use crate::types::{Block, BlockId, Update};
 
 use pulldown_cmark::{Event, Options as PulldownOptions, Parser};
@@ -97,7 +98,7 @@ impl PulldownAdapter {
     fn collect_reference_definitions(&mut self, raw: &str) {
         // Best-effort: extract single-line reference definitions and keep the latest per label.
         for line in raw.split('\n') {
-            if let Some((label, def_line)) = extract_reference_definition(line) {
+            if let Some((label, def_line)) = reference::extract_reference_definition_line(line) {
                 self.upsert_reference_definition(&label, &def_line);
             }
         }
@@ -108,7 +109,7 @@ impl PulldownAdapter {
         // Rebuild on update to avoid complicated string patching.
         let mut map: HashMap<String, String> = HashMap::new();
         for line in self.reference_definitions.split('\n') {
-            if let Some((k, v)) = extract_reference_definition(line) {
+            if let Some((k, v)) = reference::extract_reference_definition_line(line) {
                 map.insert(k, v);
             }
         }
@@ -127,54 +128,4 @@ fn parse_events_static(input: &str, options: PulldownOptions) -> Vec<Event<'stat
     Parser::new_ext(input, options)
         .map(|e| e.into_static())
         .collect()
-}
-
-fn extract_reference_definition(line: &str) -> Option<(String, String)> {
-    // Match up to 3 leading spaces, then "[label]:"
-    let mut s = line;
-    let mut spaces = 0usize;
-    while spaces < 3 && s.starts_with(' ') {
-        s = &s[1..];
-        spaces += 1;
-    }
-    let bytes = s.as_bytes();
-    if bytes.len() < 4 || bytes[0] != b'[' {
-        return None;
-    }
-    let close = s.find(']')?;
-    if close == 1 {
-        return None;
-    }
-    if s.as_bytes().get(close + 1) != Some(&b':') {
-        return None;
-    }
-    let label = &s[1..close];
-    if label.starts_with('^') {
-        return None;
-    }
-    let label = normalize_label(label)?;
-    Some((label, line.trim_end().to_string()))
-}
-
-fn normalize_label(label: &str) -> Option<String> {
-    let trimmed = label.trim();
-    if trimmed.is_empty() || trimmed.len() > 200 {
-        return None;
-    }
-    let mut out = String::with_capacity(trimmed.len());
-    let mut last_ws = false;
-    for ch in trimmed.chars() {
-        if ch.is_whitespace() {
-            last_ws = true;
-            continue;
-        }
-        if last_ws && !out.is_empty() {
-            out.push(' ');
-        }
-        last_ws = false;
-        for lc in ch.to_lowercase() {
-            out.push(lc);
-        }
-    }
-    if out.is_empty() { None } else { Some(out) }
 }

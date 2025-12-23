@@ -2,6 +2,7 @@ pub mod analyze;
 pub mod boundary;
 pub mod options;
 pub mod pending;
+mod reference;
 pub mod state;
 pub mod stream;
 pub mod syntax;
