@@ -13,6 +13,7 @@ UIs should:
 
 1. Append new `committed` blocks to their view/model.
 2. Replace/update the last rendered `pending` block (if present).
+3. If `Update.reset` is true, drop cached blocks and rebuild from the new state.
 
 ## Basic Example
 
@@ -23,6 +24,9 @@ let mut s = MdStream::new(Options::default());
 
 // streaming tick
 let u = s.append("Hello **wor");
+if u.reset {
+    // Drop all previously cached blocks and restart rendering.
+}
 for b in u.committed {
     // render once
 }
