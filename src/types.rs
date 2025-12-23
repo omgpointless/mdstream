@@ -57,6 +57,11 @@ impl Block {
 pub struct Update {
     pub committed: Vec<Block>,
     pub pending: Option<Block>,
+    /// If true, consumers must drop all previously rendered state and rebuild from this update.
+    ///
+    /// This is used for scope-driven transitions that inherently require a full re-parse (e.g.
+    /// when switching into single-block footnote mode after detecting `[^id]` / `[^id]:`).
+    pub reset: bool,
     /// Optional list of committed block IDs that adapters may want to re-parse.
     ///
     /// Note: populated in post-MVP invalidation mode.
@@ -68,6 +73,7 @@ impl Update {
         Self {
             committed: Vec::new(),
             pending: None,
+            reset: false,
             invalidated: Vec::new(),
         }
     }

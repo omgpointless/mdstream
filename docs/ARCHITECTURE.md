@@ -118,6 +118,13 @@ The default can prioritize streaming stability (SingleBlock for footnotes) while
 
 Today, invalidation is implemented for reference-style link definitions. Footnote invalidation is planned post-MVP.
 
+## Reset semantics
+
+Some transitions cannot be expressed as "append-only committed blocks" without breaking Streamdown parity.
+In such cases, `mdstream` emits `Update { reset: true, .. }` so consumers can drop cached blocks and
+rebuild from the current state. The primary example is switching into SingleBlock footnote mode when
+`[^id]` / `[^id]:` is detected mid-stream.
+
 ## Invariants
 
 - `committed` blocks are append-only, stable, and never re-emitted with changed text.

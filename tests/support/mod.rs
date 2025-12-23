@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use mdstream::{BlockKind, MdStream, Options};
 
 pub fn collect_final_blocks(
@@ -9,9 +11,15 @@ pub fn collect_final_blocks(
 
     for chunk in chunks {
         let u = s.append(&chunk);
+        if u.reset {
+            out.clear();
+        }
         out.extend(u.committed.into_iter().map(|b| (b.kind, b.raw)));
     }
     let u = s.finalize();
+    if u.reset {
+        out.clear();
+    }
     out.extend(u.committed.into_iter().map(|b| (b.kind, b.raw)));
     out
 }

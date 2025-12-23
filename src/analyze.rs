@@ -125,6 +125,10 @@ where
     }
 
     fn analyze_update(&mut self, update: Update) -> AnalyzedUpdate<A::Meta> {
+        if update.reset {
+            self.analyzer.reset();
+            self.committed_meta.clear();
+        }
         let mut out = AnalyzedUpdate::empty(update);
 
         for block in &out.update.committed {

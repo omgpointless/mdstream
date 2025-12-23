@@ -22,6 +22,8 @@ It targets LLM token-by-token / chunk-by-chunk output and helps downstream UIs (
 - The input stream is represented as a sequence of **blocks**:
   - **Committed blocks**: stable, never change again (safe for UI to cache by `BlockId`).
   - A single **pending block**: may change while streaming (UI updates only this block).
+- Some scope-driven transitions require a full reset (e.g. switching into single-block footnote mode):
+  - `append()` may return `Update { reset: true, .. }` to tell consumers to drop cached blocks.
 - A **pending pipeline** can optionally produce a `display` view for the pending block:
   - Markdown terminator (remend-like) for incomplete constructs near the tail.
   - Custom transforms via `PendingTransformer` (eg placeholders, sanitizers).

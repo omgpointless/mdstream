@@ -45,6 +45,9 @@ impl PulldownAdapter {
     }
 
     pub fn apply_update(&mut self, update: &Update) {
+        if update.reset {
+            self.clear();
+        }
         for block in &update.committed {
             self.committed_raw.insert(block.id, block.raw.clone());
             self.collect_reference_definitions(&block.raw);

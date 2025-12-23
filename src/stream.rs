@@ -605,6 +605,7 @@ pub struct MdStream {
     footnotes_detected: bool,
     footnote_scan_tail: String,
     pending_cr: bool,
+    last_finalized_buffer_len: usize,
 
     reference_usage_index: HashMap<String, HashSet<BlockId>>,
 }
@@ -627,6 +628,7 @@ impl std::fmt::Debug for MdStream {
             .field("boundary_plugins_len", &self.boundary_plugins.len())
             .field("active_boundary_plugin", &self.active_boundary_plugin)
             .field("footnotes_detected", &self.footnotes_detected)
+            .field("last_finalized_buffer_len", &self.last_finalized_buffer_len)
             .finish()
     }
 }
@@ -657,6 +659,7 @@ impl MdStream {
             footnotes_detected: false,
             footnote_scan_tail: String::new(),
             pending_cr: false,
+            last_finalized_buffer_len: 0,
             reference_usage_index: HashMap::new(),
         }
     }
@@ -1267,7 +1270,12 @@ impl MdStream {
         if raw.is_empty() {
             return None;
         }
-        let kind = Self::kind_for_mode(&self.current_mode);
+        let kind = if matches!(self.current_mode, BlockMode::Unknown) {
+            let mode = self.start_mode_for_line(self.line_str(self.current_block_start_line));
+            Self::kind_for_mode(&mode)
+        } else {
+            Self::kind_for_mode(&self.current_mode)
+        };
         let mut display = terminate_markdown(&raw, &self.opts.terminator);
         display = self.transform_pending_display(kind, &raw, display);
         Some(Block {
@@ -1348,6 +1356,7 @@ impl MdStream {
             return update;
         }
 
+        let footnotes_before = self.footnotes_detected;
         let chunk = self.normalize_newlines(chunk);
 
         if !self.footnotes_detected {
@@ -1372,8 +1381,18 @@ impl MdStream {
             }
         }
 
+        let enter_single_block_footnotes = !footnotes_before
+            && self.footnotes_detected
+            && self.opts.footnotes == FootnotesMode::SingleBlock;
+
         self.append_to_lines(&chunk);
         self.pending_display_cache = None;
+
+        if enter_single_block_footnotes {
+            self.reset_for_single_block_footnotes(&mut update);
+            update.pending = self.current_pending_block();
+            return update;
+        }
 
         // Process newly completed lines.
         while self.processed_line < self.lines.len() {
@@ -1392,7 +1411,29 @@ impl MdStream {
         update
     }
 
+    fn reset_for_single_block_footnotes(&mut self, update: &mut Update) {
+        update.reset = true;
+
+        self.committed.clear();
+        self.reference_usage_index.clear();
+        self.pending_display_cache = None;
+        self.active_boundary_plugin = None;
+
+        // Re-start IDs so consumers can treat it as a new document.
+        self.current_block_start_line = 0;
+        self.current_block_id = BlockId(1);
+        self.next_block_id = 2;
+        self.current_mode = BlockMode::Unknown;
+
+        // We intentionally stop line processing in this mode.
+        self.processed_line = self.lines.len();
+    }
+
     pub fn finalize(&mut self) -> Update {
+        if !self.pending_cr && self.buffer.len() == self.last_finalized_buffer_len {
+            return Update::empty();
+        }
+
         let mut update = Update::empty();
 
         if self.pending_cr {
@@ -1417,6 +1458,7 @@ impl MdStream {
                 self.push_committed_block(block, &mut update);
             }
             update.pending = None;
+            self.last_finalized_buffer_len = self.buffer.len();
             return update;
         }
 
@@ -1426,6 +1468,10 @@ impl MdStream {
             let end_off = self.buffer.len();
             if end_off > start_off {
                 // Commit the remaining pending block.
+                if matches!(self.current_mode, BlockMode::Unknown) {
+                    self.current_mode =
+                        self.start_mode_for_line(self.line_str(self.current_block_start_line));
+                }
                 let raw = self.buffer[start_off..end_off].to_string();
                 if raw.trim().is_empty() {
                     update.pending = None;
@@ -1444,6 +1490,7 @@ impl MdStream {
             }
         }
         update.pending = None;
+        self.last_finalized_buffer_len = self.buffer.len();
         update
     }
 
@@ -1472,6 +1519,7 @@ impl MdStream {
         self.footnotes_detected = false;
         self.footnote_scan_tail.clear();
         self.pending_cr = false;
+        self.last_finalized_buffer_len = 0;
         self.reference_usage_index.clear();
     }
 }
