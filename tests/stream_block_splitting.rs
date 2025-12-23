@@ -93,6 +93,44 @@ fn does_not_treat_autolink_as_html_block() {
 }
 
 #[test]
+fn splits_streamdown_benchmark_html_blocks() {
+    let mut s = MdStream::new(Options::default());
+    let input = "<div>\n  <p>HTML content</p>\n</div>\n\nAfter\n";
+    let u = s.append(input);
+    assert!(u
+        .committed
+        .iter()
+        .any(|b| b.raw.contains("<div>\n  <p>HTML content</p>\n</div>\n")));
+    assert_eq!(u.pending.as_ref().unwrap().raw, "After\n");
+}
+
+#[test]
+fn splits_streamdown_benchmark_nested_html_block() {
+    let mut s = MdStream::new(Options::default());
+    let input = "<div>\n  <div>\n    <div>\n      <p>Nested content</p>\n    </div>\n  </div>\n</div>\n\nAfter\n";
+    let u = s.append(input);
+    assert!(u
+        .committed
+        .iter()
+        .any(|b| b.raw.contains("<div>\n  <div>\n    <div>\n      <p>Nested content</p>\n    </div>\n  </div>\n</div>\n")));
+    assert_eq!(u.pending.as_ref().unwrap().raw, "After\n");
+}
+
+#[test]
+fn splits_streamdown_benchmark_multiple_html_blocks() {
+    let mut s = MdStream::new(Options::default());
+    let input = "<div>First block</div>\n\nSome markdown\n\n<section>\n  <p>Second block</p>\n</section>\n\nMore markdown\n";
+    let u = s.append(input);
+
+    assert!(u.committed.iter().any(|b| b.raw == "<div>First block</div>\n"));
+    assert!(u.committed.iter().any(|b| b.raw == "Some markdown\n\n"));
+    assert!(u.committed.iter().any(|b| {
+        b.raw.contains("<section>\n  <p>Second block</p>\n</section>\n") && b.kind == mdstream::BlockKind::HtmlBlock
+    }));
+    assert_eq!(u.pending.as_ref().unwrap().raw, "More markdown\n");
+}
+
+#[test]
 fn commits_math_block_as_single_block() {
     let mut s = MdStream::new(Options::default());
     s.append("$$\nx = 1\n");
