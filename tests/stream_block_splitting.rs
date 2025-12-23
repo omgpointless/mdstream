@@ -254,6 +254,31 @@ fn html_block_allows_underscore_tag_names_like_streamdown_regex() {
 }
 
 #[test]
+fn html_details_multiline_content_stays_single_block_like_streamdown_issue_164() {
+    let mut s = MdStream::new(Options::default());
+    let input = "<details>\n<summary>Summary</summary>\n\nParagraph inside details.\n</details>\n\nAfter\n";
+    let u = s.append(input);
+    assert!(u.committed.iter().any(|b| {
+        b.kind == mdstream::BlockKind::HtmlBlock
+            && b.raw
+                == "<details>\n<summary>Summary</summary>\n\nParagraph inside details.\n</details>\n"
+    }));
+    assert_eq!(u.pending.as_ref().unwrap().raw, "After\n");
+}
+
+#[test]
+fn html_div_multiline_content_stays_single_block_like_streamdown_issue_164() {
+    let mut s = MdStream::new(Options::default());
+    let input = "<div>\n\nParagraph inside div.\n</div>\n\nAfter\n";
+    let u = s.append(input);
+    assert!(u.committed.iter().any(|b| {
+        b.kind == mdstream::BlockKind::HtmlBlock
+            && b.raw == "<div>\n\nParagraph inside div.\n</div>\n"
+    }));
+    assert_eq!(u.pending.as_ref().unwrap().raw, "After\n");
+}
+
+#[test]
 fn commits_math_block_as_single_block() {
     let mut s = MdStream::new(Options::default());
     s.append("$$\nx = 1\n");

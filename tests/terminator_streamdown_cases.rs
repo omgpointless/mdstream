@@ -133,3 +133,21 @@ fn mixed_formatting_order_matches_streamdown() {
     // Underscore inside $$ should not be treated as italic.
     assert_eq!(terminate_markdown("$$formula_", &opts), "$$formula_$$");
 }
+
+#[test]
+fn latex_begin_block_does_not_duplicate_katex_delimiters_streamdown_issue_54() {
+    let opts = TerminatorOptions::default();
+    let content = "$$\n\\begin{pmatrix}\nx \\\\\ny\n\\end{pmatrix}\n=\n$$";
+    let out = terminate_markdown(content, &opts);
+    assert!(!out.contains("$$$$"));
+    assert_eq!(out, content);
+}
+
+#[test]
+fn latex_begin_block_missing_closing_delimiter_is_balanced_once() {
+    let opts = TerminatorOptions::default();
+    let content = "$$\n\\begin{bmatrix}\n1 & 2 \\\\\n3 & 4\n\\end{bmatrix}\n=";
+    let out = terminate_markdown(content, &opts);
+    assert!(!out.contains("$$$$"));
+    assert!(out.ends_with("$$"));
+}
