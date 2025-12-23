@@ -52,9 +52,44 @@ fn table_after_paragraph_is_separate_block() {
 #[test]
 fn commits_html_block_until_blank_line() {
     let mut s = MdStream::new(Options::default());
-    s.append("<div>\nhello\n</div>\n");
-    let u = s.append("\nAfter\n");
-    assert!(u.committed.iter().any(|b| b.raw.contains("<div>\nhello\n</div>\n")));
+    let u1 = s.append("<div>\nhello\n</div>\n");
+    assert!(u1.committed.iter().any(|b| b.raw.contains("<div>\nhello\n</div>\n")));
+    let _ = s.append("\nAfter\n");
+}
+
+#[test]
+fn commits_html_block_when_tag_stack_closes_without_blank_line() {
+    let mut s = MdStream::new(Options::default());
+    let u = s.append("<div>\nhello\n</div>\nAfter");
+    assert!(u.committed.iter().any(|b| b.raw == "<div>\nhello\n</div>\n"));
+    assert_eq!(u.pending.as_ref().unwrap().raw, "After");
+}
+
+#[test]
+fn commits_nested_html_block_when_stack_closes() {
+    let mut s = MdStream::new(Options::default());
+    let u = s.append("<div>\n<span>\nhi\n</span>\n</div>\nAfter");
+    assert!(u
+        .committed
+        .iter()
+        .any(|b| b.raw.contains("<div>\n<span>\nhi\n</span>\n</div>\n")));
+    assert_eq!(u.pending.as_ref().unwrap().raw, "After");
+}
+
+#[test]
+fn treats_html_comments_as_html_blocks() {
+    let mut s = MdStream::new(Options::default());
+    let u = s.append("<!--\nhello\n-->\nAfter");
+    assert!(u.committed.iter().any(|b| b.raw == "<!--\nhello\n-->\n"));
+    assert_eq!(u.pending.as_ref().unwrap().raw, "After");
+}
+
+#[test]
+fn does_not_treat_autolink_as_html_block() {
+    let mut s = MdStream::new(Options::default());
+    let u = s.append("<https://example.com>\n\nAfter");
+    // Should behave as normal paragraph split, not HTML block.
+    assert!(u.committed.iter().any(|b| b.raw == "<https://example.com>\n\n"));
 }
 
 #[test]

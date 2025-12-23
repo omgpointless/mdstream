@@ -67,6 +67,7 @@ The following scenarios must be covered by unit tests (ported conceptually from 
 - Footnote definition continuation:
   - `[^1]: line1\n    line2\n` split across chunks
 - HTML block spanning tokens: `<div>\n...` split; keep as one block until closed when possible
+- HTML block closure without blank line: `<div>...\n</div>\nAfter` should not merge `After` into the HTML block
 - List + emphasis interaction edge cases (avoid mis-termination)
 - Newline normalization:
   - CRLF split across chunks (`"\r"` then `"\n"`) must become a single `\n`

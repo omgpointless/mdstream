@@ -88,6 +88,7 @@ Key contexts (inspired by Incremark):
 - containers (optional): keep pending until container end marker arrives
 - footnote definitions: handle continuation indentation
 - block quotes & lists: conservative boundary rules to avoid splitting nested structures
+- HTML blocks: tag-stack based closure (best-effort) to avoid merging following paragraphs
 
 ### Streaming transforms (pending pipeline)
 
