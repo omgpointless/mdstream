@@ -194,3 +194,43 @@ impl BlockAnalyzer for CodeFenceAnalyzer {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MathMeta {
+    pub balanced: bool,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct MathAnalyzer;
+
+fn count_double_dollars_unescaped(text: &str) -> usize {
+    let bytes = text.as_bytes();
+    let mut count = 0usize;
+    let mut i = 0usize;
+    while i + 1 < bytes.len() {
+        if bytes[i] == b'$' && bytes[i + 1] == b'$' {
+            if i > 0 && bytes[i - 1] == b'\\' {
+                i += 2;
+                continue;
+            }
+            count += 1;
+            i += 2;
+            continue;
+        }
+        i += 1;
+    }
+    count
+}
+
+impl BlockAnalyzer for MathAnalyzer {
+    type Meta = MathMeta;
+
+    fn analyze_block(&mut self, block: &Block) -> Option<Self::Meta> {
+        if block.kind != BlockKind::MathBlock {
+            return None;
+        }
+        let count = count_double_dollars_unescaped(&block.raw);
+        Some(MathMeta {
+            balanced: count % 2 == 0,
+        })
+    }
+}
