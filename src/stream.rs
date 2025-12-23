@@ -1072,6 +1072,8 @@ impl MdStream {
             if is_empty_line(curr) || is_footnote_continuation(curr) {
                 return false;
             }
+            // A non-indented, non-empty line ends the footnote definition even without a blank line.
+            return true;
         }
 
         // A new block can start after an empty line.
