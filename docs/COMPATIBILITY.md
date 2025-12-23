@@ -24,11 +24,26 @@ Baseline: `repo-ref/streamdown/packages/streamdown/lib/parse-blocks.tsx`.
 - Basic parsing: headings + paragraphs (covered: `tests/stream_streamdown_basic_parsing.rs`)
 - Code fences: ``` / ~~~ (covered: `tests/stream_streamdown_code_blocks.rs`)
 - Math blocks: `$$ ... $$` (covered: `tests/stream_block_splitting.rs`)
-- HTML blocks: conservative merge with tag stack (covered: `tests/stream_block_splitting.rs`)
+- HTML blocks: conservative merge with tag stack (covered: `tests/stream_streamdown_html_blocks.rs`)
 - Footnotes: if any footnotes exist, return single block (covered: `tests/stream_block_splitting.rs`)
-- Tables: GFM delimiter row (covered: `tests/stream_block_splitting.rs`)
+- Tables: GFM delimiter row (covered: `tests/stream_streamdown_tables.rs`)
 - Streaming simulation (covered: `tests/stream_streamdown_simulation.rs`)
+- Streaming parity (incremental vs full re-parse): (covered: `tests/stream_streamdown_streaming_simulation_parity.rs`)
 - Mixed content scenario (covered: `tests/stream_streamdown_mixed_content.rs`)
+
+### Streamdown benchmark coverage
+
+The Streamdown benchmark suite `repo-ref/streamdown/packages/streamdown/__benchmarks__/parse-blocks.bench.ts`
+is tracked by the following tests:
+
+- `Basic Parsing` -> `tests/stream_streamdown_basic_parsing.rs`
+- `Code Blocks` -> `tests/stream_streamdown_code_blocks.rs`
+- `Math Blocks` -> `tests/stream_block_splitting.rs`
+- `HTML Blocks` -> `tests/stream_streamdown_html_blocks.rs`
+- `Footnotes` -> `tests/stream_block_splitting.rs`
+- `Tables` -> `tests/stream_streamdown_tables.rs`
+- `Streaming Simulation` -> `tests/stream_streamdown_simulation.rs` and `tests/stream_streamdown_streaming_simulation_parity.rs`
+- `Mixed Content` -> `tests/stream_streamdown_mixed_content.rs`
 
 ## Known differences vs Streamdown (documented)
 
@@ -39,7 +54,8 @@ streaming-first line scanner. As a result, there are some intentional difference
 - HTML tag detection:
   - Streamdown uses regexes like `/<(\\w+)[\\s>]/` and `/<\\/(\\w+)>/` (tag name = `\\w+`).
   - `mdstream` recognizes ASCII tag names that start with a letter and continue with
-    alphanumerics/`_`, and it supports whitespace before `>` in closing tags.
+    alphanumerics/`_`. This is closer to CommonMark-style HTML blocks and avoids many false positives
+    in chat-like text, while still matching Streamdown's `\\w+` for most practical cases.
 - HTML stack handling:
   - Streamdown only pops one closing tag per `html` token and does not attempt to parse multiple tags
     within one token.
@@ -52,9 +68,11 @@ streaming-first line scanner. As a result, there are some intentional difference
   - Streamdown relies on `marked`'s idea of tables/lists/quotes.
   - `mdstream` uses lightweight heuristics designed to be chunking-invariant; some non-benchmark edge
     cases may split differently.
+  - Streaming-only stability tweaks exist to preserve chunking invariance (e.g. avoiding premature
+    list commits when a list marker is split across chunks).
 
 These differences are acceptable as long as Streamdown benchmark parity tests and chunking invariance
-tests remain green.
+tests remain green (see `tests/chunking_invariance_suite.rs`).
 
 ## Streaming edge cases (must handle)
 
