@@ -41,6 +41,10 @@ pub struct Block {
 }
 
 impl Block {
+    pub fn display_or_raw(&self) -> &str {
+        self.display.as_deref().unwrap_or(&self.raw)
+    }
+
     pub fn code_fence_header(&self) -> Option<crate::syntax::CodeFenceHeader<'_>> {
         if self.kind != BlockKind::CodeFence {
             return None;
@@ -68,6 +72,12 @@ pub struct Update {
     pub invalidated: Vec<BlockId>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppliedUpdate {
+    pub reset: bool,
+    pub invalidated: Vec<BlockId>,
+}
+
 impl Update {
     pub fn empty() -> Self {
         Self {
@@ -75,6 +85,30 @@ impl Update {
             pending: None,
             reset: false,
             invalidated: Vec::new(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.committed.is_empty()
+            && self.pending.is_none()
+            && !self.reset
+            && self.invalidated.is_empty()
+    }
+
+    pub fn blocks(&self) -> impl Iterator<Item = &Block> {
+        self.committed.iter().chain(self.pending.iter())
+    }
+
+    pub fn apply_to(self, committed: &mut Vec<Block>, pending: &mut Option<Block>) -> AppliedUpdate {
+        if self.reset {
+            committed.clear();
+            *pending = None;
+        }
+        committed.extend(self.committed);
+        *pending = self.pending;
+        AppliedUpdate {
+            reset: self.reset,
+            invalidated: self.invalidated,
         }
     }
 }

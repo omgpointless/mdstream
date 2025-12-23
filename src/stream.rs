@@ -1567,6 +1567,12 @@ impl MdStream {
     }
 }
 
+impl Default for MdStream {
+    fn default() -> Self {
+        Self::new(Options::default())
+    }
+}
+
 #[cfg(test)]
 mod html_state_tests {
     use super::*;

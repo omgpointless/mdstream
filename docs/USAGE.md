@@ -35,6 +35,20 @@ if let Some(p) = u.pending {
 }
 ```
 
+If your UI keeps state as `(Vec<Block>, Option<Block>)`, you can use `Update::apply_to` to avoid
+getting `reset` handling wrong:
+
+```rust
+use mdstream::{MdStream, Options};
+
+let mut s = MdStream::new(Options::default());
+let mut committed = Vec::new();
+let mut pending = None;
+
+let u = s.append("Hello **wor");
+u.apply_to(&mut committed, &mut pending);
+```
+
 ## Analyzer Example (Metadata and Hints)
 
 If you want block metadata (e.g. code fence language) and streaming hints (e.g. likely incomplete),
