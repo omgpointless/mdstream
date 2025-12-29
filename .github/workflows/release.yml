@@ -101,7 +101,14 @@ jobs:
         run: cargo check -p mdstream-tokio --examples
 
       - name: Cargo package
-        run: cargo package -p mdstream && cargo package -p mdstream-tokio --no-verify
+        run: |
+          # `mdstream-tokio` depends on `mdstream = ^X.Y.Z`. During `cargo package`, Cargo resolves
+          # deps as if publishing (path overrides are removed), so packaging `mdstream-tokio` would
+          # fail until `mdstream` is already available on crates.io.
+          #
+          # `cargo publish -p mdstream-tokio` later will run packaging again after we publish
+          # `mdstream` and wait for it to appear on crates.io.
+          cargo package -p mdstream
 
   publish:
     name: Publish to crates.io
