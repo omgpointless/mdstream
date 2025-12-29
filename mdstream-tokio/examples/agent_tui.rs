@@ -5,15 +5,15 @@ use crossterm::terminal::EnterAlternateScreen;
 use crossterm::terminal::LeaveAlternateScreen;
 use crossterm::terminal::disable_raw_mode;
 use crossterm::terminal::enable_raw_mode;
+use mdstream::BlockKind;
 use mdstream::DocumentState;
 use mdstream::MdStream;
 use mdstream::Options;
-use mdstream::BlockKind;
+use mdstream_tokio::BackpressurePolicy;
 use mdstream_tokio::CoalescePreset;
 use mdstream_tokio::CoalescingReceiver;
 use mdstream_tokio::DeltaSender;
 use mdstream_tokio::FlushReason;
-use mdstream_tokio::BackpressurePolicy;
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::Constraint;
@@ -80,11 +80,13 @@ async fn main() -> io::Result<()> {
     let (tx_delta, rx_delta) = mpsc::channel::<String>(64);
     let (tx_ev, mut rx_ev) = mpsc::channel::<Event>(64);
 
-    std::thread::spawn(move || loop {
-        if let Ok(true) = crossterm::event::poll(Duration::from_millis(50)) {
-            if let Ok(ev) = crossterm::event::read() {
-                if tx_ev.blocking_send(ev).is_err() {
-                    break;
+    std::thread::spawn(move || {
+        loop {
+            if let Ok(true) = crossterm::event::poll(Duration::from_millis(50)) {
+                if let Ok(ev) = crossterm::event::read() {
+                    if tx_ev.blocking_send(ev).is_err() {
+                        break;
+                    }
                 }
             }
         }
@@ -164,7 +166,9 @@ async fn run<B: ratatui::backend::Backend>(
             if app.follow_tail {
                 app.scroll_y = max_scroll(total_lines as u16, inner.height);
             } else {
-                app.scroll_y = app.scroll_y.min(max_scroll(total_lines as u16, inner.height));
+                app.scroll_y = app
+                    .scroll_y
+                    .min(max_scroll(total_lines as u16, inner.height));
             }
 
             let paragraph = Paragraph::new(Text::from(
@@ -226,7 +230,9 @@ async fn run<B: ratatui::backend::Backend>(
 }
 
 fn handle_event(app: &mut App, ev: Event) -> bool {
-    let Event::Key(key) = ev else { return false; };
+    let Event::Key(key) = ev else {
+        return false;
+    };
     if key.kind != KeyEventKind::Press {
         return false;
     }
@@ -247,10 +253,8 @@ fn handle_event(app: &mut App, ev: Event) -> bool {
             true
         }
         KeyCode::Char('[') => {
-            app.pending_code_fence_max_lines = app
-                .pending_code_fence_max_lines
-                .saturating_sub(10)
-                .max(10);
+            app.pending_code_fence_max_lines =
+                app.pending_code_fence_max_lines.saturating_sub(10).max(10);
             true
         }
         KeyCode::Char('j') | KeyCode::Down => {
@@ -289,17 +293,20 @@ fn handle_event(app: &mut App, ev: Event) -> bool {
 fn status_line(app: &App, total_lines: u32, viewport_h: u16) -> String {
     let committed = app.state.committed().len();
     let pending = app.state.pending().is_some();
-    let pending_kind = app.last_pending_kind.map(|k| format!("{k:?}")).unwrap_or("-".to_string());
+    let pending_kind = app
+        .last_pending_kind
+        .map(|k| format!("{k:?}"))
+        .unwrap_or("-".to_string());
     let reason = app
         .last_flush_reason
         .map(|r| format!("{r:?}"))
         .unwrap_or("-".to_string());
     format!(
-        "q quit | j/k scroll | g/G top/bottom | f follow-tail={} | c coalesce={} | [/] code-tail={} | producer={} | committed={} pending={} kind={} | flush={} merged={} bytes={} | in_msgs={} out_chunks={} | lines={} y={} vh={}",
+        "q quit | j/k scroll | g/G top/bottom | f follow-tail={} | c coalesce={} | [/] code-tail={} | producer={:?} | committed={} pending={} kind={} | flush={} merged={} bytes={} | in_msgs={} out_chunks={} | lines={} y={} vh={}",
         app.follow_tail,
         app.coalesce_preset.label(),
         app.pending_code_fence_max_lines,
-        format!("{:?}", app.producer_policy),
+        app.producer_policy,
         committed,
         pending,
         pending_kind,
@@ -399,7 +406,12 @@ fn build_lines(
     (out, total)
 }
 
-fn render_pending(kind: BlockKind, text: &str, width: u16, code_fence_max_lines: usize) -> Vec<String> {
+fn render_pending(
+    kind: BlockKind,
+    text: &str,
+    width: u16,
+    code_fence_max_lines: usize,
+) -> Vec<String> {
     // Gemini CLI style: large pending code fences are truncated to reduce flicker/latency.
     if kind == BlockKind::CodeFence {
         return render_pending_code_fence(text, width, code_fence_max_lines);

@@ -19,13 +19,18 @@ fn append_ref_code_fence_pending_display_is_closed() {
     let p1 = u1.pending.expect("pending must exist");
     let d1 = p1.display.expect("pending display must exist");
     assert!(d1.contains("fn main()"));
-    assert!(d1.ends_with("```\n"), "display must end with a closing fence");
+    assert!(
+        d1.ends_with("```\n"),
+        "display must end with a closing fence"
+    );
 
     let u2 = s.append_ref("}\n");
     assert!(u2.committed.is_empty());
     let p2 = u2.pending.expect("pending must exist");
     let d2 = p2.display.expect("pending display must exist");
     assert!(d2.contains("}\n"));
-    assert!(d2.ends_with("```\n"), "display must end with a closing fence");
+    assert!(
+        d2.ends_with("```\n"),
+        "display must end with a closing fence"
+    );
 }
-

@@ -119,7 +119,10 @@ pub struct UpdateRef<'a> {
 
 impl<'a> UpdateRef<'a> {
     pub fn is_empty(&self) -> bool {
-        self.committed.is_empty() && self.pending.is_none() && !self.reset && self.invalidated.is_empty()
+        self.committed.is_empty()
+            && self.pending.is_none()
+            && !self.reset
+            && self.invalidated.is_empty()
     }
 
     pub fn to_owned(&self) -> Update {

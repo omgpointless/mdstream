@@ -994,7 +994,8 @@ impl MdStream {
                 fence_len,
             } = self.current_mode
             {
-                if self.pending_display_cache.is_some() && self.pending_display_cache_suffix.is_some()
+                if self.pending_display_cache.is_some()
+                    && self.pending_display_cache_suffix.is_some()
                 {
                     return;
                 }

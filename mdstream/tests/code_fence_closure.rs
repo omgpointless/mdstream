@@ -30,4 +30,3 @@ fn code_fence_with_inner_backticks_is_single_block() {
     assert_eq!(blocks[0].0, BlockKind::CodeFence);
     assert_eq!(blocks[0].1, markdown);
 }
-

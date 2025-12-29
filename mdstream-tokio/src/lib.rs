@@ -203,7 +203,7 @@ impl DeltaSender {
                     return Ok(SendOutcome::Buffered);
                 }
                 Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => {
-                    return Err(SendError::Closed)
+                    return Err(SendError::Closed);
                 }
             }
         }
@@ -300,7 +300,8 @@ impl CoalescingReceiver {
                     .total_in_messages
                     .saturating_add(merged_messages as u64);
                 self.stats.total_out_chunks = self.stats.total_out_chunks.saturating_add(1);
-                self.stats.total_out_bytes = self.stats.total_out_bytes.saturating_add(text.len() as u64);
+                self.stats.total_out_bytes =
+                    self.stats.total_out_bytes.saturating_add(text.len() as u64);
                 self.stats.last_reason = Some(reason);
                 self.stats.last_merged_messages = merged_messages;
                 self.stats.last_bytes = text.len();
@@ -334,7 +335,8 @@ impl CoalescingReceiver {
                         .total_in_messages
                         .saturating_add(merged_messages as u64);
                     self.stats.total_out_chunks = self.stats.total_out_chunks.saturating_add(1);
-                    self.stats.total_out_bytes = self.stats.total_out_bytes.saturating_add(text.len() as u64);
+                    self.stats.total_out_bytes =
+                        self.stats.total_out_bytes.saturating_add(text.len() as u64);
                     self.stats.last_reason = Some(reason);
                     self.stats.last_merged_messages = merged_messages;
                     self.stats.last_bytes = text.len();
@@ -353,7 +355,8 @@ impl CoalescingReceiver {
                         .total_in_messages
                         .saturating_add(merged_messages as u64);
                     self.stats.total_out_chunks = self.stats.total_out_chunks.saturating_add(1);
-                    self.stats.total_out_bytes = self.stats.total_out_bytes.saturating_add(text.len() as u64);
+                    self.stats.total_out_bytes =
+                        self.stats.total_out_bytes.saturating_add(text.len() as u64);
                     self.stats.last_reason = Some(reason);
                     self.stats.last_merged_messages = merged_messages;
                     self.stats.last_bytes = text.len();
